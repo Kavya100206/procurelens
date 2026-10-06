@@ -24,3 +24,7 @@ eval/results_*.csv
 
 # Assessment notes & prompt files
 build.md
+
+# Runtime data
+data/human_reviews.json
+

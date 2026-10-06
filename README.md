@@ -40,33 +40,40 @@ The starter code intentionally **does not implement an agent, tool strategy, pol
 - Run the commands below from the extracted starter-pack directory
 - Internet access is required only for installing packages and calling the model provider you choose
 
-## Quick start
+## Quick start from a fresh clone
 
-### 1. Create an environment
+### 1. Set up environment and dependencies
 
 **macOS / Linux**
-
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements.txt
+pip install -r requirements.txt
+cp .env.example .env
+# Edit .env and set your GROQ_API_KEY
 ```
 
 **Windows PowerShell**
-
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
+pip install -r requirements.txt
+Copy-Item .env.example .env
+# Edit .env and set your GROQ_API_KEY
 ```
 
-### 2. Verify the starter pack
-
+### 2. Verify setup and run tests
 ```bash
 python verify_setup.py
+make test
 ```
 
-You should see `PRE-FLIGHT PASSED`. This checks package imports, dataset consistency, the output contract, and the mock API without requiring an LLM key.
+### 3. One-Command Launch
+```bash
+make run
+```
+This automatically starts both the mock vendor-risk API (`http://127.0.0.1:8001`) and the Streamlit Copilot UI (`http://127.0.0.1:8501`).
+
 
 ### 3. Add your LLM credentials
 
