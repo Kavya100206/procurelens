@@ -25,7 +25,10 @@ def load_vendors() -> pd.DataFrame:
 
 
 def load_purchase_history() -> pd.DataFrame:
-    return pd.read_csv(DATA_DIR / "purchase_history.csv")
+    df = pd.read_csv(DATA_DIR / "purchase_history.csv")
+    if "annual_cost_usd" not in df.columns and "annual_amount_usd" in df.columns:
+        df["annual_cost_usd"] = df["annual_amount_usd"]
+    return df
 
 
 def load_requests() -> list[dict]:
@@ -33,8 +36,9 @@ def load_requests() -> list[dict]:
 
 
 def get_request(request_id: str) -> dict:
+    normalized_id = request_id.strip().upper()
     for request in load_requests():
-        if request["request_id"] == request_id:
+        if request["request_id"].strip().upper() == normalized_id:
             return request
     raise KeyError(f"Unknown request_id: {request_id}")
 
