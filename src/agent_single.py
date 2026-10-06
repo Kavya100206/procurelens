@@ -176,7 +176,7 @@ def _call_groq_with_retry(
             raise exc
 
 
-def run_single_agent(request_id: str) -> ProcurementDecision:
+def run_single_agent(request_id: str, request_data: dict[str, Any] | None = None) -> ProcurementDecision:
     """Architecture A: Single Agent Baseline.
 
     Runs a tool-calling loop using Groq, collects structured evidence,
@@ -193,7 +193,7 @@ def run_single_agent(request_id: str) -> ProcurementDecision:
     client = Groq(api_key=api_key)
 
     # Load request data and requester profile
-    req = get_request(request_id)
+    req = request_data if request_data is not None else get_request(request_id)
     employees_df = load_employees()
     emp_match = employees_df[employees_df["employee_id"] == req.get("requester_id")]
     department = emp_match.iloc[0]["department"] if not emp_match.empty else None

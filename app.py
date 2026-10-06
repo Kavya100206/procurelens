@@ -64,10 +64,11 @@ st.caption(
 # Sidebar: Configuration & Controls
 # -----------------------------------------------------------------------------
 st.sidebar.header("Configuration & Selection")
-request_id = st.sidebar.selectbox(
-    "Select Purchase Request",
-    list(requests_by_id.keys()),
-    format_func=lambda rid: f"{rid} - {requests_by_id[rid]['product_name']} (${requests_by_id[rid].get('annual_cost_usd', 0) or 0:,.0f})",
+
+input_mode = st.sidebar.radio(
+    "Request Input Mode",
+    ["Select Existing Request", "Custom Request Entry"],
+    index=0,
 )
 
 arch_display = st.sidebar.radio(
@@ -82,39 +83,94 @@ if "Staged" in arch_display:
 else:
     selected_arch = "single"
 
-# Cache key for session state to prevent accidental re-runs
-session_cache_key = f"decision_{request_id}_{selected_arch}"
-
-req = requests_by_id[request_id]
-emp_match = employees_df[employees_df["employee_id"] == req.get("requester_id")]
-requester_dept = emp_match.iloc[0]["department"] if not emp_match.empty else "Unknown"
-requester_name = emp_match.iloc[0]["name"] if not emp_match.empty else req.get("requester_id")
-
 col1, col2 = st.columns([1, 1], gap="large")
 
 with col1:
     st.subheader("1. Purchase Request Details")
-    with st.container(border=True):
-        f1, f2 = st.columns(2)
-        with f1:
-            st.markdown(f"**Request ID:** `{req.get('request_id')}`")
-            st.markdown(f"**Requester:** {requester_name} (`{req.get('requester_id')}`)")
-            st.markdown(f"**Department:** {requester_dept}")
-            st.markdown(f"**Product:** {req.get('product_name')}")
-            st.markdown(f"**Vendor:** {req.get('vendor_name')}")
-        with f2:
-            cost = req.get("annual_cost_usd")
-            cost_str = f"${cost:,.2f}" if cost is not None else "Missing / Not specified"
-            st.markdown(f"**Annual Cost:** {cost_str}")
-            st.markdown(f"**Category:** {req.get('category')}")
-            st.markdown(f"**Seats / Licenses:** {req.get('user_count') or 'Not specified'}")
-            st.markdown(f"**Data Access Level:** `{req.get('data_access_level')}`")
-            st.markdown(f"**Urgency:** {req.get('urgency', 'normal').capitalize()}")
 
-        integrations = req.get("requested_integrations") or []
-        st.markdown(f"**Requested Integrations:** {', '.join(integrations) if integrations else 'None'}")
-        st.markdown("**Business Justification:**")
-        st.info(req.get("business_justification", "None provided"))
+    if input_mode == "Select Existing Request":
+        request_id = st.sidebar.selectbox(
+            "Select Purchase Request",
+            list(requests_by_id.keys()),
+            format_func=lambda rid: f"{rid} - {requests_by_id[rid]['product_name']} (${requests_by_id[rid].get('annual_cost_usd', 0) or 0:,.0f})",
+        )
+        req = requests_by_id[request_id]
+        emp_match = employees_df[employees_df["employee_id"] == req.get("requester_id")]
+        requester_dept = emp_match.iloc[0]["department"] if not emp_match.empty else "Unknown"
+        requester_name = emp_match.iloc[0]["name"] if not emp_match.empty else req.get("requester_id")
+
+        with st.container(border=True):
+            f1, f2 = st.columns(2)
+            with f1:
+                st.markdown(f"**Request ID:** `{req.get('request_id')}`")
+                st.markdown(f"**Requester:** {requester_name} (`{req.get('requester_id')}`)")
+                st.markdown(f"**Department:** {requester_dept}")
+                st.markdown(f"**Product:** {req.get('product_name')}")
+                st.markdown(f"**Vendor:** {req.get('vendor_name')}")
+            with f2:
+                cost = req.get("annual_cost_usd")
+                cost_str = f"${cost:,.2f}" if cost is not None else "Missing / Not specified"
+                st.markdown(f"**Annual Cost:** {cost_str}")
+                st.markdown(f"**Category:** {req.get('category')}")
+                st.markdown(f"**Seats / Licenses:** {req.get('user_count') or 'Not specified'}")
+                st.markdown(f"**Data Access Level:** `{req.get('data_access_level')}`")
+                st.markdown(f"**Urgency:** {req.get('urgency', 'normal').capitalize()}")
+
+            integrations = req.get("requested_integrations") or []
+            st.markdown(f"**Requested Integrations:** {', '.join(integrations) if integrations else 'None'}")
+            st.markdown("**Business Justification:**")
+            st.info(req.get("business_justification", "None provided"))
+
+        custom_req_data = None
+    else:
+        # Custom Request Entry Form
+        with st.container(border=True):
+            c1, c2 = st.columns(2)
+            with c1:
+                custom_id = st.text_input("Request ID", value="REQ-CUSTOM-01")
+                emp_options = [f"{r['employee_id']} - {r['name']} ({r['department']})" for _, r in employees_df.iterrows()]
+                selected_emp_str = st.selectbox("Requester", emp_options)
+                selected_emp_id = selected_emp_str.split(" - ")[0]
+                custom_product = st.text_input("Product Name", value="Custom Enterprise App")
+                custom_vendor = st.text_input("Vendor Name", value="Custom Vendor")
+                custom_category = st.text_input("Category", value="General AI")
+
+            with c2:
+                custom_cost = st.number_input("Annual Cost (USD)", value=15000.0, step=1000.0)
+                custom_seats = st.number_input("Seats / Licenses", value=10, step=1)
+                custom_data_level = st.selectbox(
+                    "Data Access Level",
+                    ["internal", "internal_documents", "confidential_documents", "customer_pii", "employee_pii", "source_code", "credentials", "secrets", "none"],
+                )
+                custom_urgency = st.selectbox("Urgency", ["normal", "high", "urgent", "low"])
+                custom_integrations = st.multiselect(
+                    "Requested Integrations",
+                    ["CRM", "SSO", "Git repositories", "Cloud accounts", "Document repository"],
+                )
+
+            custom_justification = st.text_area(
+                "Business Justification (Untrusted input - test injections here)",
+                value="Need this tool for productivity.",
+            )
+
+        request_id = custom_id
+        custom_req_data = {
+            "request_id": custom_id,
+            "requester_id": selected_emp_id,
+            "product_name": custom_product,
+            "vendor_name": custom_vendor,
+            "category": custom_category,
+            "annual_cost_usd": custom_cost,
+            "user_count": custom_seats,
+            "data_access_level": custom_data_level,
+            "requested_integrations": custom_integrations,
+            "business_justification": custom_justification,
+            "urgency": custom_urgency,
+        }
+        req = custom_req_data
+
+    # Cache key for session state to prevent accidental re-runs
+    session_cache_key = f"decision_{request_id}_{selected_arch}"
 
     # Explicit Run button: ONLY this triggers an LLM analysis
     run_clicked = st.button("Run Copilot Analysis", type="primary", use_container_width=True)
@@ -128,7 +184,7 @@ with col2:
         else:
             with st.spinner("Analyzing request against budget, catalog, vendor security, and policy..."):
                 try:
-                    res = handle_request(request_id, architecture="single")
+                    res = handle_request(request_id, architecture="single", request_data=custom_req_data)
                     st.session_state[session_cache_key] = res
                 except Exception as exc:
                     err_text = str(exc)
