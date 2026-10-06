@@ -182,6 +182,10 @@ All policy rules and thresholds are quoted verbatim from `data/procurement_polic
 
 Models are dynamically configured via environment variables and never hardcoded in logic:
 - **Primary Model (`GROQ_MODEL`):** `openai/gpt-oss-120b` (Free tier model on Groq)
-- **Fallback Model (`GROQ_FALLBACK_MODEL`):** `openai/gpt-oss-20b` (Fast fallback model on Groq)
+- **Fallback / Development Model (`GROQ_FALLBACK_MODEL`):** `openai/gpt-oss-20b` (Fast fallback and development model on Groq)
 - **Temperature:** `0` (Deterministic, reproducible responses).
-- **Prompt Injection Defense:** In Architecture A, request text is framed as untrusted payload in system prompt. In Architecture B, raw request text is completely withheld from Agent 2.
+- **Rate Limit Handling:** Exponential backoff retry logic handles Groq HTTP 429 rate limits.
+- **Prompt Injection Defense & Best-Effort Heuristics:**
+  - `tools/check_policy.py:scan_prompt_injection` scans all free-text fields (request justification, vendor notes, catalog notes) for adversarial patterns.
+  - When triggered, it strictly ADDS `prompt_injection_detected`, forces `escalate`, and preserves all required approvals.
+  - *Caveat:* Regex/keyword detection on text is a best-effort defense-in-depth layer, not a mathematically provable boundary. Architecture B provides structural isolation by withholding raw request text from Agent 2.

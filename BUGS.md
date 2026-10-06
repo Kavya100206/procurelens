@@ -37,31 +37,31 @@ This document tracks all bugs, inconsistencies, and edge-case vulnerabilities id
 ---
 
 ### Bug 5: Department Budget Gap for "Go To Market" (`employees.csv` vs `department_budgets.csv`)
-- **Status:** Documented, fix in Phase 2 (Policy behavior pending user confirmation in Phase 2)
+- **Status:** Fixed in Phase 2
 - **Symptom:** In `employees.csv`, Director `Robert King` (`E007`) is assigned to department `Go To Market`. However, `department_budgets.csv` only defines budgets for `Marketing`, `Engineering`, `Sales`, `Finance`, `Customer Success`, and `Operations`. Any budget check for E007 fails with missing department data.
 - **Root Cause:** Discrepancy between organizational hierarchy and budget tables. Robert King manages Sales (`E003`) and Customer Success (`E005`), but `Go To Market` has no budget allocation in the snapshot.
-- **Fix Planned:** Clarify expected policy behavior with user in Phase 2 open questions and implement explicit deterministic handling in `tools/check_budget`.
+- **Fix:** Implemented Option A in `tools/check_budget` and `tools/check_policy`: when a requester's department has no budget row, `check_budget` returns `budget_status="no_budget_record"` without crashing; `check_policy` adds risk flag `no_department_budget`, requires `Finance` approval, forces recommendation to `escalate`, and documents the missing allocation in `missing_information`.
 
 ---
 
 ### Bug 6: Fragile Date Parsing on Empty or Null Vendor Review Dates
-- **Status:** Documented, fix in Phase 2
+- **Status:** Fixed in Phase 2
 - **Symptom:** In `vendors.csv`, `security_review_date` is empty string `""` for `BrandBoard`, `GrowthForge`, and `NimbusAI`. In `vendor_risk.json`, `last_review_date` is `null` or missing. Standard `date.fromisoformat()` crashes with `ValueError: Invalid isoformat string: ''` or `TypeError: fromisoformat: argument must be str`.
 - **Root Cause:** Datasets represent pending or uncompleted security reviews with empty strings and `None`.
-- **Fix Planned:** Implement safe ISO date parser utility in `tools/get_vendor_status` and `tools/check_policy` that safely interprets falsy/empty values as unreviewed/pending.
+- **Fix:** Built safe ISO date parsing helper `_safe_parse_date` in `tools/get_vendor_status` that gracefully handles falsy, empty, and malformed date strings, evaluating uncompleted reviews without crashing.
 
 ---
 
 ### Bug 7: Stale Review Date and Conflicting Evidence for `SignalWatch`
-- **Status:** Documented, fix in Phase 2
+- **Status:** Fixed in Phase 2
 - **Symptom:** In `vendors.csv`, `SignalWatch` has `security_status: Approved` with `security_review_date: 2025-07-01`. As of snapshot reference date (`2026-09-30`), this review is 456 days old (exceeding the 365-day validity threshold). Concurrently, `vendor_risk.json` marks it as `security_review_status: expired`. Any naive tool trusting `vendors.csv` without computing age falsely treats the vendor as approved.
 - **Root Cause:** The internal registry record is stale (`"Registry has not yet been refreshed with latest review state"`), deliberately conflicting with the live external service.
-- **Fix Planned:** Enforce 365-day validity comparison against reference date `2026-09-30` in `tools/check_policy` and `tools/get_vendor_status` to flag `vendor_review_expired` and `conflicting_vendor_evidence`.
+- **Fix:** Deterministic date arithmetic against fixed reference date `2026-09-30` in `tools/get_vendor_status` and `tools/check_policy` detects staleness (`days > 365` flags `vendor_review_expired`) and identifies registry vs API discrepancy to flag `conflicting_vendor_evidence`.
 
 ---
 
 ### Bug 8: Threshold Boundary Logic (`>` vs `>=`) in Approval & Legal Rules
-- **Status:** Documented, fix in Phase 2
+- **Status:** Fixed in Phase 2
 - **Symptom:** Policy Section 4 specifies tiered business approval thresholds (`Up to $1,000`, `$1,000.01 - $10,000`, `$10,000.01 - $25,000`, `Above $25,000`). Policy Section 7 specifies that Legal review is required when a vendor is new and annual spend is `$10,000 or more`. If threshold logic uses `amount > 10000`, a request of exactly `$10,000` with a new vendor fails to trigger required Legal review.
 - **Root Cause:** Standard boundary ambiguity when implementing strict vs inclusive inequalities.
-- **Fix Planned:** Strictly code deterministic boundary logic in `tools/check_policy` (`<= 1000`, `<= 10000`, `<= 25000`, and `annual_cost_usd >= 10000` for new vendor legal review).
+- **Fix:** Strictly coded deterministic boundary logic in `tools/check_policy` (`<= 1000`, `<= 10000`, `<= 25000`, `> 25000`, and `annual_cost_usd >= 10000` for new vendor legal review).

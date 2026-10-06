@@ -6,10 +6,12 @@ import unittest
 from datetime import date
 from pathlib import Path
 
+from src.data_access import POLICY_REFERENCE_DATE
+
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
 EVALS = ROOT / "evals"
-REFERENCE_DATE = date(2026, 9, 30)
+REFERENCE_DATE = POLICY_REFERENCE_DATE
 
 
 def read_csv(name: str) -> list[dict[str, str]]:

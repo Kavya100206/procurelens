@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+from datetime import date
 import json
 from pathlib import Path
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data"
+
+# Source of truth: data/procurement_policy.md Line 4
+# "Data snapshot / evaluation reference date: 2026-09-30"
+POLICY_REFERENCE_DATE = date(2026, 9, 30)
 
 
 def load_employees() -> pd.DataFrame:
