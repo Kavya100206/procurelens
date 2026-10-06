@@ -3,41 +3,52 @@ from __future__ import annotations
 from typing import Literal
 from pydantic import AliasChoices, BaseModel, Field
 
+Recommendation = Literal[
+    "approve",
+    "reject",
+    "escalate",
+    "request_info",
+    "use_existing_tool",
+]
+
 
 class EvidenceItem(BaseModel):
     source: str = Field(description="Tool/data source name")
-    finding: str = Field(
-        validation_alias=AliasChoices("finding", "fact"),
+    fact: str = Field(
+        validation_alias=AliasChoices("fact", "finding"),
         description="Concise factual finding",
     )
-    reference: str | None = Field(
+    ref: str | None = Field(
         default=None,
-        validation_alias=AliasChoices("reference", "ref"),
+        validation_alias=AliasChoices("ref", "reference"),
         description="Optional record ID / policy section / endpoint",
     )
 
     @property
-    def fact(self) -> str:
-        return self.finding
+    def finding(self) -> str:
+        return self.fact
 
     @property
-    def ref(self) -> str | None:
-        return self.reference
+    def reference(self) -> str | None:
+        return self.ref
 
 
 class RunTelemetry(BaseModel):
     llm_calls: int | None = None
     tool_calls: int | None = None
     tool_names: list[str] = Field(default_factory=list)
+    latency_ms: float | None = None
 
 
 class ProcurementDecision(BaseModel):
     request_id: str
-    recommendation: str = Field(description="Short recommendation label or sentence")
+    recommendation: Recommendation = Field(
+        description="Recommendation label: approve | reject | escalate | request_info | use_existing_tool"
+    )
     evidence: list[EvidenceItem] = Field(default_factory=list)
-    required_approvals: list[str] = Field(
+    approvals_required: list[str] = Field(
         default_factory=list,
-        validation_alias=AliasChoices("required_approvals", "approvals_required"),
+        validation_alias=AliasChoices("approvals_required", "required_approvals"),
         description="List of required approval roles",
     )
     missing_information: list[str] = Field(default_factory=list)
@@ -47,16 +58,16 @@ class ProcurementDecision(BaseModel):
     telemetry: RunTelemetry | None = None
 
     @property
-    def approvals_required(self) -> list[str]:
-        return self.required_approvals
+    def required_approvals(self) -> list[str]:
+        return self.approvals_required
 
 
 Architecture = Literal["single", "staged"]
 
-# Suggested approval names for consistency in evaluation:
+# Standard Approval Roles taxonomy:
 # Manager, Department Head, Procurement, Finance, CFO, Security, Privacy, Legal
-#
-# Suggested risk-flag taxonomy (you may add others):
+
+# Standard Risk-Flag taxonomy:
 # existing_tool_overlap
 # budget_insufficient
 # security_review_required

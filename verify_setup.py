@@ -99,7 +99,7 @@ def check_contract_and_evals() -> None:
 
     sample = ProcurementDecision(
         request_id="REQ-CHECK",
-        recommendation="Manual review",
+        recommendation="escalate",
         evidence=[EvidenceItem(source="setup", finding="Contract validation works")],
         next_step="Continue implementation",
     )
