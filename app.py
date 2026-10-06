@@ -201,15 +201,20 @@ with col2:
     if decision:
         rec = decision.recommendation
         if rec == "approve":
-            st.success(f"### Recommendation: APPROVE")
+            st.success("### Recommendation: PROCEED TO APPROVERS (Advisory)")
+            st.caption("Advisory recommendation: standard routine review meets criteria to proceed to listed business approver(s).")
         elif rec == "escalate":
-            st.warning(f"### Recommendation: ESCALATE")
+            st.warning("### Recommendation: ESCALATE")
+            st.caption("Requires elevated stakeholder reviews (e.g. Security, Privacy, Legal, or Finance).")
         elif rec == "request_info":
-            st.info(f"### Recommendation: REQUEST INFORMATION")
+            st.info("### Recommendation: REQUEST INFORMATION")
+            st.caption("Material request fields are missing or unspecified.")
         elif rec == "use_existing_tool":
-            st.info(f"### Recommendation: USE EXISTING TOOL")
+            st.info("### Recommendation: USE EXISTING TOOL")
+            st.caption("Internal catalog contains an existing approved alternative software.")
         else:
-            st.error(f"### Recommendation: REJECT")
+            st.error("### Recommendation: REJECT")
+            st.caption("Action rejected (reserved strictly for human authority).")
 
         st.markdown(f"**Next Step:** {decision.next_step}")
 
@@ -254,11 +259,18 @@ with col2:
 
         if decision.telemetry:
             tel = decision.telemetry
+            retry_str = f" | Retry wait: {tel.retry_wait_ms} ms" if tel.retry_wait_ms else ""
             st.caption(
-                f"Telemetry: Latency {tel.latency_ms} ms | LLM calls: {tel.llm_calls} | "
+                f"Telemetry: Latency {tel.latency_ms} ms{retry_str} | LLM calls: {tel.llm_calls} | "
                 f"Tool calls: {tel.tool_calls} ({', '.join(tel.tool_names)}) | "
-                f"Model: {tel.model_used} (Fallback: {tel.fallback_used})"
+                f"Model: {tel.model_used} (Fallback: {tel.fallback_used}) | "
+                f"Code Override Applied: {tel.code_override_applied}"
             )
+            if tel.gap_justified is not None or tel.injection_suspected is not None:
+                st.caption(
+                    f"AI Signals: Gap Justified={tel.gap_justified} (Reason: {tel.gap_reason or 'None'}) | "
+                    f"Injection Suspected={tel.injection_suspected} (Reason: {tel.injection_reason or 'None'})"
+                )
     else:
         st.info("Click 'Run Copilot Analysis' to evaluate this request against budget, catalog, vendor, and policy.")
 

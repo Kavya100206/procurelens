@@ -38,8 +38,18 @@ class RunTelemetry(BaseModel):
     tool_calls: int | None = None
     tool_names: list[str] = Field(default_factory=list)
     latency_ms: float | None = None
+    retry_wait_ms: float = 0.0
     model_used: str | None = None
     fallback_used: bool = False
+    raw_llm_recommendation: str | None = None
+    raw_llm_approvals: list[str] = Field(default_factory=list)
+    raw_llm_risk_flags: list[str] = Field(default_factory=list)
+    code_override_applied: bool = False
+    gap_justified: bool | None = None
+    gap_reason: str | None = None
+    injection_suspected: bool | None = None
+    injection_reason: str | None = None
+    ambiguity_reason: str | None = None
 
 
 class ProcurementDecision(BaseModel):

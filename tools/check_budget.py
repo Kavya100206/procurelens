@@ -1,15 +1,26 @@
-from __future__ import annotations
-
+from typing import Any
+import pandas as pd
 from src.data_access import load_budgets
 
 
-def check_budget(department: str, amount: float | int | None) -> dict:
+def check_budget(
+    department: str,
+    amount: float | int | None,
+    fixture_overlay: dict[str, Any] | None = None,
+) -> dict:
     """Deterministic budget tool.
 
     Compares requested annualized cost with available department software budget.
     Implements policy rules for unmapped departments (e.g. Go To Market).
+    Supports in-memory fixture_overlay for deterministic offline testing.
     """
     df = load_budgets()
+
+    if fixture_overlay and "department_budgets" in fixture_overlay:
+        overlay_rows = fixture_overlay["department_budgets"]
+        if overlay_rows:
+            overlay_df = pd.DataFrame(overlay_rows)
+            df = pd.concat([overlay_df, df], ignore_index=True).drop_duplicates(subset=["department"], keep="first")
 
     # Normalize department for case-insensitive lookup
     dept_clean = department.strip() if department else ""

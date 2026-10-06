@@ -17,12 +17,18 @@ def _safe_parse_date(val: object) -> date | None:
         return None
 
 
-def get_vendor_status(vendor_name: str, timeout_seconds: float = 3.0, retries: int = 2) -> dict:
+def get_vendor_status(
+    vendor_name: str,
+    timeout_seconds: float = 3.0,
+    retries: int = 2,
+    fixture_overlay: dict[str, Any] | None = None,
+) -> dict:
     """Vendor risk & security status tool.
 
     Queries both the internal procurement registry (vendors.csv) and external vendor-risk API.
     Enforces 365-day security assessment currency from fixed reference date (2026-09-30),
     detects conflicting evidence, and fails gracefully on upstream API outages.
+    Supports in-memory fixture_overlay for deterministic offline testing.
     """
     clean_name = (vendor_name or "").strip()
     vendors_df = load_vendors()
@@ -32,9 +38,27 @@ def get_vendor_status(vendor_name: str, timeout_seconds: float = 3.0, retries: i
     if not registry_match.empty:
         registry_record = registry_match.iloc[0].to_dict()
 
-    # Call external mock service with retries and graceful error catching
-    api_response = get_vendor_risk(clean_name, timeout_seconds=timeout_seconds, retries=retries)
-    is_api_error = "error" in api_response
+    # Apply optional registry fixture overlay
+    if fixture_overlay:
+        reg_overrides = fixture_overlay.get("vendor_registry") or fixture_overlay.get("vendor_registry_overrides", {}).get(clean_name)
+        if reg_overrides:
+            registry_record = dict(registry_record or {})
+            registry_record.update(reg_overrides)
+
+    # Call external mock service or simulate outage/overrides
+    if fixture_overlay and "vendor_api_outage" in fixture_overlay:
+        outage_type = fixture_overlay["vendor_api_outage"]
+        api_response = {"error": True, "detail": f"Vendor API service unavailable ({outage_type})"}
+        is_api_error = True
+    else:
+        api_response = get_vendor_risk(clean_name, timeout_seconds=timeout_seconds, retries=retries)
+        if fixture_overlay:
+            risk_overrides = fixture_overlay.get("vendor_risk") or fixture_overlay.get("vendor_risk_overrides", {}).get(clean_name)
+            if risk_overrides:
+                if "error" in api_response:
+                    api_response = {}
+                api_response.update(risk_overrides)
+        is_api_error = "error" in api_response
 
     # Parse dates safely
     reg_date_str = registry_record.get("security_review_date") if registry_record else None
@@ -83,8 +107,16 @@ def get_vendor_status(vendor_name: str, timeout_seconds: float = 3.0, retries: i
         "review_age_days": review_age_days,
         "is_expired": is_expired,
         "conflicting_evidence": conflicting_evidence,
-        "processes_personal_data": api_response.get("processes_personal_data", False) if not is_api_error else False,
-        "stores_data_outside_region": api_response.get("stores_data_outside_region", False) if not is_api_error else False,
+        "processes_personal_data": (
+            bool(fixture_overlay["processes_personal_data"])
+            if fixture_overlay and "processes_personal_data" in fixture_overlay
+            else (bool(api_response.get("processes_personal_data", False)) if not is_api_error else False)
+        ),
+        "stores_data_outside_region": (
+            bool(fixture_overlay["stores_data_outside_region"])
+            if fixture_overlay and "stores_data_outside_region" in fixture_overlay
+            else (bool(api_response.get("stores_data_outside_region", False)) if not is_api_error else False)
+        ),
         "risk_level": api_response.get("risk_level", "unknown") if not is_api_error else "unknown",
         "legal_terms_status": legal_terms_status,
         "notes": (

@@ -138,6 +138,29 @@ The runner checks the response schema and several minimum behavioral expectation
 - Use the **data snapshot / policy reference date defined in `data/procurement_policy.md`** for date-based checks; do not depend on the computer's current date.
 - You may refactor the starter project, but keep the `handle_request(...)` adapter working for evaluation.
 
+## Recommendation Labels & Policy Precedence
+
+ProcureLens recommendations are advisory signals designed to guide human decision-makers. They follow strict semantics and precedence:
+
+### 1. Recommendation Label Definitions
+- **`approve`**: Strictly means **"recommend proceeding to the listed approvers"**, NEVER **"purchase approved"**. The AI copilot does not have financial or procurement authority; final purchase approval remains exclusively with the designated human approvers.
+- **`reject`**: **Reserved exclusively for human reviewers**. The AI copilot never autonomously rejects a purchase request. Requests with policy violations, budget deficits, or risks are routed via `escalate` or `use_existing_tool`.
+- **`use_existing_tool`**: Recommended when an active, approved tool in the corporate catalog covers the requested category and capability, and the requester has not justified a valid capability gap.
+- **`escalate`**: Recommended when special reviews (Security, Privacy, Legal, Finance, CFO) or elevated risk flags are active (e.g. uncompleted security reviews, budget shortfall, sensitive data access).
+- **`request_info`**: Recommended when mandatory submission parameters (such as annual cost, user seat count, or data access level) are missing or ambiguous.
+
+### 2. Precedence Hierarchy
+When multiple policy triggers apply, recommendations resolve in strict precedence order:
+```text
+request_info  >  use_existing_tool  >  escalate  >  approve
+```
+1. **`request_info`** outranks all others: Missing critical information must be resolved before assessing tools or risks.
+2. **`use_existing_tool`** outranks `escalate`: Redirection to an existing internal tool supersedes initiating costly security/legal onboarding reviews unless the requester provides a legitimate gap justification.
+3. **`escalate`** outranks `approve`: Any required specialist review or risk condition elevates the request to human specialists.
+4. **`approve`** fires only when all policy constraints and evidence checks pass cleanly.
+
+Even when `use_existing_tool` or `request_info` fires, `approvals_required` and `risk_flags` are fully computed and preserved for audit transparency.
+
 ## Suggested implementation sequence
 
 ```text

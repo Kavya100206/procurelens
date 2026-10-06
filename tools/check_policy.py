@@ -40,6 +40,9 @@ def check_policy(
     requested_integrations: list[str] | None = None,
     user_count: int | None = None,
     has_catalog_overlap: bool = False,
+    overlap_type: str = "none",
+    gap_justified: bool = True,
+    matched_catalog_product: str | None = None,
     prompt_injection_detected: bool = False,
     business_justification: str | None = None,
     vendor_notes: str | None = None,
@@ -259,7 +262,7 @@ def check_policy(
         risk_flags.append("prompt_injection_detected")
 
     # Deduplicate while preserving role hierarchy order
-    role_priority = ["Manager", "Department Head", "Procurement", "Finance", "CFO", "Security", "Privacy", "Legal"]
+    role_priority = ["Manager", "Department Head", "Finance", "CFO", "Procurement", "Security", "Privacy", "Legal"]
     ordered_approvals = [r for r in role_priority if r in approvals_required]
     for r in approvals_required:
         if r not in ordered_approvals:
@@ -267,13 +270,14 @@ def check_policy(
 
     # -------------------------------------------------------------------------
     # Deterministic Recommendation Logic
+    # Strict Precedence: request_info > use_existing_tool > escalate > approve
     # -------------------------------------------------------------------------
     if requester_missing_fields:
         recommendation = "request_info"
         next_step = f"Request missing details from requester: {'; '.join(requester_missing_fields)}."
-    elif has_catalog_overlap and not is_new_vendor and not risk_flags:
+    elif has_catalog_overlap and overlap_type == "alternative_product_overlap" and not gap_justified:
         recommendation = "use_existing_tool"
-        next_step = "Direct requester to approved existing software in internal catalog."
+        next_step = f"Direct requester to approved existing software in internal catalog ({matched_catalog_product or 'alternative tool'})."
     elif (
         has_budget_exception
         or "budget_insufficient" in risk_flags
@@ -284,14 +288,12 @@ def check_policy(
         or "security_review_required" in risk_flags
         or "legal_review_required" in risk_flags
         or "privacy_review_required" in risk_flags
-        or "prompt_injection_detected" in risk_flags
-        or (amount is not None and float(amount) > 25000.00)
     ):
         recommendation = "escalate"
         next_step = f"Route for required stakeholder reviews: {', '.join(ordered_approvals)}."
     else:
         recommendation = "approve"
-        next_step = f"Submit to {ordered_approvals[0] if ordered_approvals else 'Manager'} for standard purchase approval."
+        next_step = f"Proceed to routine approvers: {', '.join(ordered_approvals)}."
 
     return {
         "recommendation": recommendation,
