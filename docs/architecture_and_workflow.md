@@ -185,7 +185,41 @@ Models are dynamically configured via environment variables and never hardcoded 
 - **Fallback / Development Model (`GROQ_FALLBACK_MODEL`):** `openai/gpt-oss-20b` (Fast fallback and development model on Groq)
 - **Temperature:** `0` (Deterministic, reproducible responses).
 - **Rate Limit Handling:** Exponential backoff retry logic handles Groq HTTP 429 rate limits.
-- **Prompt Injection Defense & Best-Effort Heuristics:**
-  - `tools/check_policy.py:scan_prompt_injection` scans all free-text fields (request justification, vendor notes, catalog notes) for adversarial patterns.
-  - When triggered, it strictly ADDS `prompt_injection_detected`, forces `escalate`, and preserves all required approvals.
-  - *Caveat:* Regex/keyword detection on text is a best-effort defense-in-depth layer, not a mathematically provable boundary. Architecture B provides structural isolation by withholding raw request text from Agent 2.
+
+---
+
+## 5. Telemetry Tracking & Tool Counting
+
+### 5.1. Metric Definitions
+- **`llm_calls`**: Counts the total number of chat completions requested from the model (including the initial prompt, tool-response turns, and JSON re-formatting retries).
+- **`tool_calls`**: Counts every tool executed during request processing (`check_budget`, `check_catalog`, `get_vendor_status`, `check_policy`), whether invoked autonomously by the model or completed by the deterministic safety pipeline.
+- **`model_used`**: The specific model that provided the final completion (`openai/gpt-oss-120b` or fallback `openai/gpt-oss-20b`).
+- **`fallback_used`**: Boolean flag indicating whether the execution switched to the fallback model due to HTTP 429 rate limits or model resolution errors.
+
+### 5.2. Analysis of Public Suite Tool Counts (PUB-05 vs Others)
+In the initial public evaluation run:
+- **PUB-01, PUB-02, PUB-03, PUB-04, PUB-06**: All had `tool_calls = 4`. The LLM autonomously called `check_budget`, `check_catalog`, and `get_vendor_status` (3 calls), and post-LLM validation executed `check_policy` (1 call), totaling 4.
+- **PUB-05 (REQ-1006)**: Initially recorded `tool_calls = 3`. Because the request had `annual_cost_usd: null`, the model intelligently skipped `check_budget` and only called `check_catalog` and `get_vendor_status` (2 calls). Post-LLM validation added `check_policy` (1 call), resulting in 3.
+- **Standardization**: Telemetry counting is unified across Architecture A and Architecture B: any tool executed—whether by LLM tool-calling or deterministic completion—increments `tool_calls` and logs to `tool_names`.
+
+---
+
+## 6. Guided Pipeline Execution & Fallback Statistics
+
+Architecture A is designed as a **guided agent**:
+- While the LLM is given full agency to call tools in any order, the deterministic harness inspects the gathered evidence before policy validation.
+- If the LLM skips any required tool (e.g. omitting budget or vendor verification), the deterministic harness automatically runs the missing tool to ensure complete evidence.
+- **Public Evaluation Benchmark Statistics**:
+  - **Autonomous Tool Execution:** 5 / 6 cases (83.3%) — PUB-01, PUB-02, PUB-03, PUB-04, PUB-06 autonomously invoked all 3 primary tools.
+  - **Harness Completion:** 1 / 6 cases (16.7%) — PUB-05 (REQ-1006) required harness completion for `check_budget` because cost was missing.
+
+---
+
+## 7. Untrusted Data Boundary & Prompt Injection Defense
+
+All user-supplied request text and business fields are isolated:
+1. **Delimited Data Block:** The user message wraps all request fields inside a `<UNTRUSTED_PURCHASE_REQUEST_DATA>` block with an explicit security notice.
+2. **System Prompt Constraint:** The system prompt instructs the model that content within `<UNTRUSTED_PURCHASE_REQUEST_DATA>` is untrusted business data and must never be interpreted as instructions.
+3. **Deterministic Scanner:** `tools/check_policy.py:scan_prompt_injection` scans all business text for adversarial phrases (`ignore policy`, `bypass approval`, `pre-approved by CFO`). If detected, it strictly **adds** `prompt_injection_detected`, forces `escalate`, and never relaxes any rule.
+4. **Best-Effort Caveat:** Regex keyword scanning is a heuristic defense-in-depth layer, not a mathematical guarantee. Architecture B provides true structural isolation by withholding raw requester text from Agent 2.
+

@@ -87,6 +87,8 @@ def main() -> None:
                 'case_id':case['case_id'], 'request_id':case['request_id'], 'architecture':args.architecture,
                 'passed_minimum_checks':passed, 'latency_ms':round(latency_ms,1),
                 'llm_calls': tel.llm_calls if tel else '', 'tool_calls': tel.tool_calls if tel else '',
+                'model_used': getattr(tel, 'model_used', '') if tel else '',
+                'fallback_used': getattr(tel, 'fallback_used', False) if tel else False,
                 'failures':' | '.join(failures)
             })
         except NotImplementedError as exc:
@@ -98,7 +100,8 @@ def main() -> None:
             rows.append({
                 'case_id':case['case_id'], 'request_id':case['request_id'], 'architecture':args.architecture,
                 'passed_minimum_checks':False, 'latency_ms':round(latency_ms,1),
-                'llm_calls':'', 'tool_calls':'', 'failures':f"ERROR: {type(exc).__name__}: {exc}"
+                'llm_calls':'', 'tool_calls':'', 'model_used':'', 'fallback_used':False,
+                'failures':f"ERROR: {type(exc).__name__}: {exc}"
             })
 
     if rows:

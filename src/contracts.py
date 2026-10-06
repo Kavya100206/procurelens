@@ -38,6 +38,8 @@ class RunTelemetry(BaseModel):
     tool_calls: int | None = None
     tool_names: list[str] = Field(default_factory=list)
     latency_ms: float | None = None
+    model_used: str | None = None
+    fallback_used: bool = False
 
 
 class ProcurementDecision(BaseModel):

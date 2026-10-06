@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 from src.contracts import Architecture, ProcurementDecision
+from src.agent_single import run_single_agent
 
 
 def handle_request(request_id: str, architecture: Architecture = "single") -> ProcurementDecision:
     """Assessment adapter.
 
-    Keep this function callable by the public/hidden evaluation harness.
-    Your internal implementation may use any framework, modules, agents, tools,
-    deterministic checks, or orchestration strategy.
+    Routes request to Architecture A (single agent) or Architecture B (staged 2-agent).
+    Returns a Pydantic-validated ProcurementDecision object.
     """
-    raise NotImplementedError(
-        "Implement handle_request(...) as part of Assessment 3. "
-        "Return a ProcurementDecision-compatible object."
-    )
+    if architecture == "single":
+        return run_single_agent(request_id)
+    elif architecture == "staged":
+        raise NotImplementedError("Architecture B (staged / 2-agent) will be implemented in Phase 6.")
+    else:
+        raise ValueError(f"Unknown architecture: {architecture}")
