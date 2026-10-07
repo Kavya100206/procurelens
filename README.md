@@ -190,10 +190,10 @@ ProcureLens provides four modular tools under `tools/`:
 
 | Tool | Source File | Purpose & Operational Logic |
 | :--- | :--- | :--- |
-| **`check_budget`** | [`tools/check_budget.py`](file:///Users/kavya/Documents/SCALER/Projects/procurelens/tools/check_budget.py) | Compares requested annual spend against `department_budgets.csv`. Detects budget shortfalls. Handles unmapped departments (e.g. Go-To-Market) by escalating to Finance per Option A. |
-| **`check_catalog`** | [`tools/check_catalog.py`](file:///Users/kavya/Documents/SCALER/Projects/procurelens/tools/check_catalog.py) | Queries `software_catalog.csv` using **structured fields only** (`vendor_name`, `category`). Distinguishes `same_product_expansion` (seat additions) from `alternative_product_overlap` (different product in same category). Ignores untrusted justification text for tool matching. |
-| **`get_vendor_status`** | [`tools/get_vendor_status.py`](file:///Users/kavya/Documents/SCALER/Projects/procurelens/tools/get_vendor_status.py) | Combines local `vendor_registry.csv` and live mock API (`/vendor-risk/{vendor_name}`). Validates SOC2/ISO27001 certs and calculates 365-day expiry relative to fixed anchor date `2026-09-30`. Detects record conflicts. Catches HTTP 503 and timeouts gracefully. |
-| **`check_policy`** | [`tools/check_policy.py`](file:///Users/kavya/Documents/SCALER/Projects/procurelens/tools/check_policy.py) | Encodes financial approval thresholds, privacy review triggers, and regex-based adversarial injection detection (`scan_prompt_injection`). |
+| **`check_budget`** | [`tools/check_budget.py`](tools/check_budget.py) | Compares requested annual spend against `department_budgets.csv`. Detects budget shortfalls. Handles unmapped departments (e.g. Go-To-Market) by escalating to Finance per Option A. |
+| **`check_catalog`** | [`tools/check_catalog.py`](tools/check_catalog.py) | Queries `software_catalog.csv` using **structured fields only** (`vendor_name`, `category`). Distinguishes `same_product_expansion` (seat additions) from `alternative_product_overlap` (different product in same category). Ignores untrusted justification text for tool matching. |
+| **`get_vendor_status`** | [`tools/get_vendor_status.py`](tools/get_vendor_status.py) | Combines local `vendor_registry.csv` and live mock API (`/vendor-risk/{vendor_name}`). Validates SOC2/ISO27001 certs and calculates 365-day expiry relative to fixed anchor date `2026-09-30`. Detects record conflicts. Catches HTTP 503 and timeouts gracefully. |
+| **`check_policy`** | [`tools/check_policy.py`](tools/check_policy.py) | Encodes financial approval thresholds, privacy review triggers, and regex-based adversarial injection detection (`scan_prompt_injection`). |
 
 ---
 
@@ -250,7 +250,7 @@ ProcureLens recommendations are advisory signals designed to guide human decisio
 
 ## 9. Bugs Fixed & Architectural Evolution
 
-All 12 architectural bugs discovered and resolved during development are documented in [`BUGS.md`](file:///Users/kavya/Documents/SCALER/Projects/procurelens/BUGS.md):
+All 12 architectural bugs discovered and resolved during development are documented in [`BUGS.md`](BUGS.md):
 
 | Bug ID | Title | Summary of Resolution |
 | :---: | :--- | :--- |
@@ -271,7 +271,7 @@ All 12 architectural bugs discovered and resolved during development are documen
 
 ## 10. Evaluation Benchmark Results
 
-The 20-case evaluation benchmark in [`evals/eval_cases.json`](file:///Users/kavya/Documents/SCALER/Projects/procurelens/evals/eval_cases.json) rigorously tests boundary conditions, financial tiers, prompt injections, catalog overlaps, and API outages.
+The 20-case evaluation benchmark in [`evals/eval_cases.json`](evals/eval_cases.json) rigorously tests boundary conditions, financial tiers, prompt injections, catalog overlaps, and API outages.
 
 > **Methodological Scope & Statistical Limitations:**
 > - **Sample Size & Model**: Evaluated on $N = 20$ benchmark cases using single-run executions against a single model (`openai/gpt-oss-20b`).

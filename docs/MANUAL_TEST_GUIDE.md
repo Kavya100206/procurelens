@@ -5,7 +5,7 @@
 ## PART 0: Start From Scratch
 
 ### 1. Terminal Setup & Environment Verification
-Run these exact commands from your terminal in the repository root (`/Users/kavya/Documents/SCALER/Projects/procurelens`):
+Run these exact commands from your terminal in the repository root:
 
 ```bash
 # 1. Activate your virtual environment
