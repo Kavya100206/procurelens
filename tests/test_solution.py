@@ -297,6 +297,12 @@ class SolutionTests(unittest.TestCase):
         self.assertIsNotNone(decision.telemetry)
         self.assertEqual(decision.telemetry.retry_wait_ms, 1500.0)
 
+    def test_app_compiles(self):
+        """Confirm app.py has valid python syntax and compiles cleanly without SyntaxError."""
+        import py_compile
+        py_compile.compile(str(ROOT / "app.py"), doraise=True)
+
 
 if __name__ == "__main__":
     unittest.main()
+

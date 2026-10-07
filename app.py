@@ -183,14 +183,14 @@ with col2:
             try:
                 res = handle_request(request_id, architecture=selected_arch, request_data=custom_req_data)
                 st.session_state[session_cache_key] = res
-                except Exception as exc:
-                    err_text = str(exc)
-                    if "429" in err_text or "rate limit" in err_text.lower():
-                        st.error("Rate limit reached on Groq API (HTTP 429). Please wait a moment and retry.")
-                    elif "GROQ_API_KEY" in err_text or "api_key" in err_text.lower():
-                        st.error("Groq API key error. Please check GROQ_API_KEY in your .env file.")
-                    else:
-                        st.error(f"Analysis could not be completed: {err_text}")
+            except Exception as exc:
+                err_text = str(exc)
+                if "429" in err_text or "rate limit" in err_text.lower():
+                    st.error("Rate limit reached on Groq API (HTTP 429). Please wait a moment and retry.")
+                elif "GROQ_API_KEY" in err_text or "api_key" in err_text.lower():
+                    st.error("Groq API key error. Please check GROQ_API_KEY in your .env file.")
+                else:
+                    st.error(f"Analysis could not be completed: {err_text}")
 
     # Read from session state without re-running LLM on interactive widget clicks
     decision: ProcurementDecision | None = st.session_state.get(session_cache_key)
