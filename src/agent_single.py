@@ -177,9 +177,16 @@ def _call_groq_with_retry(
                 continue
 
             if is_rate_limit and attempt < max_retries:
-                time.sleep(backoff)
-                retry_wait_ms += backoff * 1000.0
-                backoff *= 2.0
+                wait_time = backoff
+                match = re.search(r"try again in ([\d\.]+)s", error_str)
+                if match:
+                    try:
+                        wait_time = max(wait_time, float(match.group(1)) + 0.5)
+                    except Exception:
+                        pass
+                time.sleep(wait_time)
+                retry_wait_ms += wait_time * 1000.0
+                backoff = max(backoff * 2.0, wait_time * 1.5)
                 continue
 
             if attempt < max_retries:
@@ -210,7 +217,7 @@ def run_single_agent(
     primary_model = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
     fallback_model = os.getenv("GROQ_FALLBACK_MODEL", "openai/gpt-oss-20b")
 
-    client = Groq(api_key=api_key)
+    client = Groq(api_key=api_key, max_retries=0)
 
     # Load request data and requester profile
     req = request_data if request_data is not None else get_request(request_id)

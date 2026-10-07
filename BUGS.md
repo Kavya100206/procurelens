@@ -87,3 +87,12 @@ This document tracks all bugs, inconsistencies, and edge-case vulnerabilities id
   2. Implemented structured `overlap_type` in `tools/check_catalog`: `"same_product_expansion"` (same vendor and product name; never redirects to existing tool) vs `"alternative_product_overlap"` (different product covering the same category; redirects if `gap_justified == False`).
   3. Ensured catalog matching derives strictly from structured request fields (`vendor_name`, `category`), completely ignoring untrusted justification text for tool matching.
 
+---
+
+### Bug 11: Benchmark Fixture Confound in Outage Cases (EVAL-14 & EVAL-15)
+- **Status:** Original run, fixture confound (Resolved in Phase 6)
+- **Symptom:** In the initial 20-case evaluation run, Architecture A failed `EVAL-14` (HTTP 503 outage) and `EVAL-15` (network timeout), returning `use_existing_tool` instead of `escalate`.
+- **Root Cause (Fixture Confound):** Both evaluation cases originally assigned `category: "General AI"` to `NimbusAI Copilot`. In `software_catalog.csv`, `NeuralDesk Business` exists under `General AI`. Because the test was designed to evaluate graceful degradation during vendor API outages per Policy Section 10, the unintended catalog overlap in `General AI` caused policy precedence (`use_existing_tool > escalate`) to fire when the requester provided a generic business justification (*"Marketing team writing assistant"*, *"Copywriting tool"*).
+- **Fix:** Preserved the original run record in `BUGS.md` as "original run, fixture confound". Updated `evals/eval_cases.json` for EVAL-14 and EVAL-15 so that `category` is changed to `"Legal AI"` (matching `REQ-1009`, which has zero catalog entries), while keeping `product_name` and `business_justification` completely unchanged. This cleanly isolates vendor API failure handling from catalog substitution rules.
+
+

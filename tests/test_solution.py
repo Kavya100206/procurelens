@@ -39,9 +39,49 @@ class SolutionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             handle_request("REQ-1001", architecture="unknown")  # type: ignore
 
-    def test_staged_architecture_raises_not_implemented(self):
-        with self.assertRaises(NotImplementedError):
-            handle_request("REQ-1001", architecture="staged")
+    @patch("src.agent_staged._call_groq_with_retry")
+    def test_staged_architecture_executes(self, mock_groq):
+        """Confirm staged architecture runs Agent 1 + Agent 2 and returns ProcurementDecision."""
+        analyst_payload = {
+            "request_id": "REQ-1001",
+            "evidence": [],
+            "gap_justified": True,
+            "gap_reason": "No overlap",
+            "injection_suspected": False,
+            "injection_reason": None,
+            "ambiguity_reason": None,
+        }
+        reviewer_payload = {
+            "request_id": "REQ-1001",
+            "recommendation": "escalate",
+            "evidence": [],
+            "approvals_required": ["Manager", "Privacy"],
+            "missing_information": [],
+            "risk_flags": ["privacy_review_required"],
+            "next_step": "Submit for manager and privacy review.",
+        }
+        mock_analyst_msg = MagicMock()
+        mock_analyst_msg.tool_calls = None
+        mock_analyst_msg.content = json.dumps(analyst_payload)
+        choice_1 = MagicMock(message=mock_analyst_msg)
+
+        mock_reviewer_msg = MagicMock()
+        mock_reviewer_msg.tool_calls = None
+        mock_reviewer_msg.content = json.dumps(reviewer_payload)
+        choice_2 = MagicMock(message=mock_reviewer_msg)
+
+        mock_groq.side_effect = [
+            (MagicMock(choices=[choice_1]), "openai/gpt-oss-20b", False, 0.0),
+            (MagicMock(choices=[choice_2]), "openai/gpt-oss-20b", False, 0.0),
+        ]
+
+        decision = handle_request("REQ-1001", architecture="staged")
+        self.assertIsInstance(decision, ProcurementDecision)
+        self.assertEqual(decision.recommendation, "escalate")
+        self.assertIn("Manager", decision.approvals_required)
+        self.assertIn("Privacy", decision.approvals_required)
+        self.assertIsNotNone(decision.telemetry)
+        self.assertEqual(decision.telemetry.llm_calls, 2)
 
     # -------------------------------------------------------------------------
     # 1. Recommendation Override Tests

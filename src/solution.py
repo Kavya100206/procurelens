@@ -1,6 +1,7 @@
 from typing import Any
 from src.contracts import Architecture, ProcurementDecision
 from src.agent_single import run_single_agent
+from src.agent_staged import run_staged_agent
 
 
 def handle_request(
@@ -18,6 +19,6 @@ def handle_request(
     if architecture == "single":
         return run_single_agent(request_id, request_data=request_data, fixture_overlay=fixture_overlay)
     elif architecture == "staged":
-        raise NotImplementedError("Architecture B (staged / 2-agent) will be implemented in Phase 6.")
+        return run_staged_agent(request_id, request_data=request_data, fixture_overlay=fixture_overlay)
     else:
         raise ValueError(f"Unknown architecture: {architecture}")

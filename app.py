@@ -78,7 +78,7 @@ arch_display = st.sidebar.radio(
 )
 
 if "Staged" in arch_display:
-    st.sidebar.warning("Architecture B (Staged 2-Agent) is disabled until Phase 6.")
+    st.sidebar.caption("Architecture B: Analyst (evidence extraction) -> Reviewer (isolated policy evaluation).")
     selected_arch = "staged"
 else:
     selected_arch = "single"
@@ -179,13 +179,10 @@ with col2:
     st.subheader("2. Copilot Recommendation & Policy Evidence")
 
     if run_clicked:
-        if selected_arch == "staged":
-            st.error("Architecture B (Staged 2-Agent) is disabled until Phase 6. Please select Architecture A.")
-        else:
-            with st.spinner("Analyzing request against budget, catalog, vendor security, and policy..."):
-                try:
-                    res = handle_request(request_id, architecture="single", request_data=custom_req_data)
-                    st.session_state[session_cache_key] = res
+        with st.spinner(f"Analyzing request with {arch_display}..."):
+            try:
+                res = handle_request(request_id, architecture=selected_arch, request_data=custom_req_data)
+                st.session_state[session_cache_key] = res
                 except Exception as exc:
                     err_text = str(exc)
                     if "429" in err_text or "rate limit" in err_text.lower():

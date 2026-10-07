@@ -10,6 +10,7 @@ run:
 test:
 	$(PYTHON) -m unittest discover -s tests
 
-# Evaluation suite placeholder
+# Comprehensive evaluation benchmark (Architecture A vs Architecture B on 20 cases)
+# Pass FRESH=1 (e.g., `make eval FRESH=1`) to bypass disk cache and re-run all cases live
 eval:
-	@echo "available in Phase 6"
+	$(PYTHON) evals/run_eval.py --architecture all $(if $(FRESH),--fresh,)

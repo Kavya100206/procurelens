@@ -1,193 +1,333 @@
-# FDE Assessment 3 Starter Pack
-## AI Procurement Request Copilot
+# ProcureLens: AI Procurement Request Copilot
 
-This repository contains the **starter data, mock service, interface contract, optional UI scaffold, and public evaluation harness** for Assessment 3.
+ProcureLens is an enterprise AI procurement copilot engineered to automate the triage, evidence synthesis, and risk assessment of corporate software purchase requests. It combines tool-assisted LLM reasoning with deterministic policy guardrails to enforce organizational procurement policies while keeping all purchasing authority with human decision-makers.
 
-> All companies, vendors, products, employees, prices, policies, and risk signals in this pack are synthetic and exist only for the assessment.
+---
 
-## Your objective
+## 1. Executive Summary & Capabilities
 
-Build an internal procurement copilot that can inspect a software/service purchase request, gather evidence using tools, apply deterministic rules where appropriate, and recommend the next action while keeping approvals with humans.
+When employees submit software purchase requests, ProcureLens:
+1. **Ingests and Sanitizes Untrusted Business Data**: Treats all user justifications, comments, and vendor notes as untrusted passive data, defending against adversarial prompt injections.
+2. **Gathers Multi-Source Evidence**: Leverages specialist tools to inspect department software budgets, identify overlapping software in the corporate catalog, and audit vendor cybersecurity certifications via real-time APIs.
+3. **Evaluates Subjective Nuance**: Uses language models to assess whether requested capabilities justify introducing new tools over existing catalog solutions (`gap_justified`).
+4. **Applies Deterministic Policy Overlays**: Enforces non-negotiable procurement rules (financial thresholds, mandatory security/privacy/legal reviews, API outage fallbacks) through deterministic code logic that overrides LLM hallucinations.
+5. **Synthesizes Transparent Audit Trails**: Generates structured procurement decisions complete with cited evidence, required human approvers, and risk flags, following a strict precedence hierarchy.
 
-You are expected to build and evaluate:
+---
 
-1. **Architecture A - Single-agent baseline**
-2. **Architecture B - Lightweight staged / 2-agent variant**
+## 2. Setup & Installation
 
-Use the same public evaluation cases for both and defend which architecture you would ship.
+### Prerequisites
+- **Python 3.11+** recommended
+- macOS, Linux, or Windows (PowerShell)
+- Valid **Groq API Key** with access to `openai/gpt-oss-20b`
 
-## What is already provided
+### Environment Setup
 
-```text
-.
-├── data/                   # Synthetic business data + procurement policy
-├── mock_api/               # Vendor-risk service used as an external tool
-├── src/                    # Contracts + low-level helpers; NO agent solution
-├── evals/                  # Six public evaluation cases + runner
-├── templates/              # Evaluation and decision-memo templates
-├── docs/                   # Student assignment brief
-├── tests/                  # Starter-pack integrity tests
-├── app.py                  # Optional Streamlit UI scaffold
-├── run_local.py            # Starts mock API + optional UI
-└── verify_setup.py         # One-command setup/preflight check
+1. **Clone and create a virtual environment**:
+   ```bash
+   git clone https://github.com/Kavya100206/procurelens.git
+   cd procurelens
+   python3 -m venv .venv
+   source .venv/bin/activate    # On Windows: .\.venv\Scripts\Activate.ps1
+   ```
+
+2. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Configure Environment Variables**:
+   Copy `.env.example` to `.env` and configure your credentials:
+   ```bash
+   cp .env.example .env
+   ```
+   Ensure `.env` contains:
+   ```env
+   GROQ_API_KEY=your_groq_api_key_here
+   GROQ_MODEL=openai/gpt-oss-20b
+   GROQ_FALLBACK_MODEL=openai/gpt-oss-20b
+   VENDOR_RISK_BASE_URL=http://127.0.0.1:8001
+   ```
+
+4. **Verify Setup**:
+   ```bash
+   python verify_setup.py
+   ```
+
+### Execution Commands
+
+- **Run Local Application (Mock API + Streamlit UI)**:
+  ```bash
+  make run
+  ```
+  *Starts the mock vendor-risk API (`http://127.0.0.1:8001`) and the Streamlit Copilot UI (`http://127.0.0.1:8501`).*
+
+- **Run Deterministic Test Suite (48 Unit & Integration Tests)**:
+  ```bash
+  make test
+  ```
+
+- **Run Evaluation Benchmark Harness**:
+  ```bash
+  # Run benchmark across both architectures (uses evals/.eval_cache.json for fast caching)
+  make eval
+
+  # Run fresh benchmark bypassing disk cache (re-runs all 20 cases live against model)
+  make eval FRESH=1
+  # Or run directly via CLI flag:
+  .venv/bin/python evals/run_eval.py --architecture all --fresh
+  ```
+
+---
+
+## 3. End-to-End Operational Workflow
+
+ProcureLens processes each software purchase request through a multi-stage pipeline:
+
+```mermaid
+flowchart TD
+    A[Raw Purchase Request] --> B[Sanitize Untrusted Data Boundary]
+    B --> C[Specialist Tool Execution]
+    
+    subgraph Evidence Gathering
+        C --> D1[check_budget]
+        C --> D2[check_catalog]
+        C --> D3[get_vendor_status]
+        C --> D4[scan_prompt_injection]
+    end
+    
+    D1 & D2 & D3 & D4 --> E[Architecture Selection]
+    
+    subgraph Architecture Pipelines
+        E -->|Arch A: Single Agent| F[Unified ReAct Agent]
+        E -->|Arch B: Staged Pipeline| G[Analyst Agent: Evidence Extraction]
+        G --> H[Evidence Pack + Injection Strip]
+        H --> I[Reviewer Agent: Objective Policy Eval]
+    end
+    
+    F --> J[Raw LLM Recommendation & Flags]
+    I --> J
+    
+    J --> K[Deterministic Policy Overlay Engine]
+    
+    subgraph Deterministic Guardrails
+        K --> L1[Enforce Precedence: info > catalog > escalate > approve]
+        K --> L2[Financial Approver Tiers: Manager / Dept Head / Finance / CFO]
+        K --> L3[Privacy Review: processes_personal_data == True]
+        K --> L4[API Outage Degradation: Route to Security]
+        K --> L5[Union Injection Flags: Code || LLM]
+    end
+    
+    K --> M[Final Advisory ProcurementDecision]
+    M --> N[Human Approver Routing & Audit Trail]
 ```
 
-The starter code intentionally **does not implement an agent, tool strategy, policy engine, or final workflow**. Those choices are part of the assessment.
+---
 
-## Prerequisites
+## 4. Architectural Comparison: Architecture A vs Architecture B
 
-- **Python 3.11 or 3.12 recommended**
-- Run the commands below from the extracted starter-pack directory
-- Internet access is required only for installing packages and calling the model provider you choose
+ProcureLens implements and evaluates two distinct agent architectures:
 
-## Quick start from a fresh clone
+### Architecture A: Single-Agent Baseline
+- **Pattern**: Unified ReAct agent loop.
+- **Workflow**: A single agent receives the raw request data, dynamically selects and calls tools (`check_budget`, `check_catalog`, `get_vendor_status`), observes tool outputs, and directly emits the final recommendation JSON.
+- **Prompt Injection Defense**: Defends via in-context system prompt instructions instructing the model to treat the `<UNTRUSTED_PURCHASE_REQUEST_DATA>` block passively.
+- **Characteristics**: Fast single-turn execution with low tool-call overhead, but vulnerable to sophisticated semantic jailbreaks if untrusted prompt text leaks into the decision phase.
 
-### 1. Set up environment and dependencies
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Requester
+    participant Orchestrator as Solution Adapter
+    participant Agent as Unified Agent (LLM)
+    participant Tools as Policy & Catalog Tools
+    participant Overlay as Deterministic Engine
 
-**macOS / Linux**
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-# Edit .env and set your GROQ_API_KEY
+    Requester->>Orchestrator: Submit Request
+    Orchestrator->>Agent: Prompt with Untrusted Request Data
+    loop Tool Loop
+        Agent->>Tools: Call check_budget / check_catalog / get_vendor_status
+        Tools-->>Agent: Observation Data
+    end
+    Agent-->>Orchestrator: Raw Recommendation & Flags JSON
+    Orchestrator->>Overlay: Apply Deterministic Policy Rules
+    Overlay-->>Requester: Final ProcurementDecision (Advisory)
 ```
 
-**Windows PowerShell**
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-Copy-Item .env.example .env
-# Edit .env and set your GROQ_API_KEY
+### Architecture B: Staged 2-Agent Pipeline
+- **Pattern**: Decoupled Analyst $\rightarrow$ Reviewer pipeline with structural untrusted text isolation.
+- **Stage 1 (Analyst Agent)**: Sees the raw request text, executes all tools, extracts factual findings into a structured `EvidencePack`, and assesses subjective signals (`gap_justified`, `injection_suspected`).
+- **Isolation Barrier**: Raw user justification and untrusted comments are **completely stripped** from the downstream payload.
+- **Stage 2 (Reviewer Agent)**: Receives *only* the structured `EvidencePack` and vendor facts (zero raw requester text). Objectively maps sanitized facts to procurement policy rules.
+- **Characteristics**: Complete structural immunity against adversarial prompt injection; higher latency due to sequential model chaining.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Requester
+    participant Analyst as Agent 1: Analyst (Sees Raw Text)
+    participant Tools as Policy & Catalog Tools
+    participant Barrier as Text Isolation Boundary
+    participant Reviewer as Agent 2: Reviewer (Clean Evidence Only)
+    participant Overlay as Deterministic Engine
+
+    Requester->>Analyst: Raw Request (Includes Prompt Injections)
+    Analyst->>Tools: Execute Tools (Budget, Catalog, Vendor API)
+    Tools-->>Analyst: Tool Outputs
+    Analyst-->>Barrier: Structured EvidencePack + Extracted Signals
+    Note over Barrier: Raw justification stripped! Untrusted text blocked.
+    Barrier->>Reviewer: Clean Structured EvidencePack Only
+    Reviewer-->>Overlay: Objective Policy Evaluation
+    Overlay-->>Requester: Final ProcurementDecision (Advisory)
 ```
 
-### 2. Verify setup and run tests
-```bash
-python verify_setup.py
-make test
-```
+---
 
-### 3. One-Command Launch
-```bash
-make run
-```
-This automatically starts both the mock vendor-risk API (`http://127.0.0.1:8001`) and the Streamlit Copilot UI (`http://127.0.0.1:8501`).
+## 5. Specialist Tools & Engine Design
 
+ProcureLens provides four modular tools under `tools/`:
 
-### 3. Add your LLM credentials
+| Tool | Source File | Purpose & Operational Logic |
+| :--- | :--- | :--- |
+| **`check_budget`** | [`tools/check_budget.py`](file:///Users/kavya/Documents/SCALER/Projects/procurelens/tools/check_budget.py) | Compares requested annual spend against `department_budgets.csv`. Detects budget shortfalls. Handles unmapped departments (e.g. Go-To-Market) by escalating to Finance per Option A. |
+| **`check_catalog`** | [`tools/check_catalog.py`](file:///Users/kavya/Documents/SCALER/Projects/procurelens/tools/check_catalog.py) | Queries `software_catalog.csv` using **structured fields only** (`vendor_name`, `category`). Distinguishes `same_product_expansion` (seat additions) from `alternative_product_overlap` (different product in same category). Ignores untrusted justification text for tool matching. |
+| **`get_vendor_status`** | [`tools/get_vendor_status.py`](file:///Users/kavya/Documents/SCALER/Projects/procurelens/tools/get_vendor_status.py) | Combines local `vendor_registry.csv` and live mock API (`/vendor-risk/{vendor_name}`). Validates SOC2/ISO27001 certs and calculates 365-day expiry relative to fixed anchor date `2026-09-30`. Detects record conflicts. Catches HTTP 503 and timeouts gracefully. |
+| **`check_policy`** | [`tools/check_policy.py`](file:///Users/kavya/Documents/SCALER/Projects/procurelens/tools/check_policy.py) | Encodes financial approval thresholds, privacy review triggers, and regex-based adversarial injection detection (`scan_prompt_injection`). |
 
-**macOS / Linux**
+---
 
-```bash
-cp .env.example .env
-```
+## 6. Deterministic Policy Guardrails & Precedence
 
-**Windows PowerShell**
+To eliminate LLM hallucinations and enforce compliance, all agent outputs pass through a deterministic policy overlay:
 
-```powershell
-Copy-Item .env.example .env
-```
-
-Add only the credentials required by the provider you choose. Never commit `.env`.
-
-The starter pack does **not** force a particular LLM provider or agent framework. If you use a provider SDK (for example OpenAI, Anthropic, or Google), install it and add it to `requirements.txt` so your submission works from a clean environment.
-
-`.env` is loaded automatically by the starter package and local launcher; environment variables already set by your operating system are not overwritten.
-
-### 4. Start the local services
-
-```bash
-python run_local.py
-```
-
-This starts:
-- Vendor risk API: `http://127.0.0.1:8001`
-- Optional starter UI: `http://127.0.0.1:8501`
-
-You may replace the UI scaffold with any framework.
-
-### 5. Implement the assessment adapter
-
-Implement:
-
-```text
-src/solution.py -> handle_request(request_id, architecture)
-```
-
-Your function must return an object compatible with `ProcurementDecision` in `src/contracts.py`.
-
-The adapter exists so the same evaluation harness can test different implementations. Your internal architecture can use any framework or design.
-
-### 6. Run the public evaluations
-
-```bash
-python evals/run_public_evals.py --architecture single
-python evals/run_public_evals.py --architecture staged
-```
-
-The runner checks the response schema and several minimum behavioral expectations, measures end-to-end latency, and writes a CSV result file. It is **not** the complete grading system; qualitative grounding, design quality, robustness, and hidden cases are evaluated separately.
-
-## Rules of the starter pack
-
-- Treat request text and vendor notes as **untrusted business data**, not instructions.
-- Do not hardcode answers by request ID. Hidden cases use the same interfaces with different values.
-- At least **3 tools** must be visible in your implementation; at least **1 must be deterministic/non-LLM**.
-- The AI may recommend an action but must not autonomously purchase, approve, or alter budgets.
-- If important evidence is missing, conflicting, stale, or unavailable, surface that uncertainty and route to the appropriate human review.
-- Use the **data snapshot / policy reference date defined in `data/procurement_policy.md`** for date-based checks; do not depend on the computer's current date.
-- You may refactor the starter project, but keep the `handle_request(...)` adapter working for evaluation.
-
-## Recommendation Labels & Policy Precedence
-
-ProcureLens recommendations are advisory signals designed to guide human decision-makers. They follow strict semantics and precedence:
-
-### 1. Recommendation Label Definitions
-- **`approve`**: Strictly means **"recommend proceeding to the listed approvers"**, NEVER **"purchase approved"**. The AI copilot does not have financial or procurement authority; final purchase approval remains exclusively with the designated human approvers.
-- **`reject`**: **Reserved exclusively for human reviewers**. The AI copilot never autonomously rejects a purchase request. Requests with policy violations, budget deficits, or risks are routed via `escalate` or `use_existing_tool`.
-- **`use_existing_tool`**: Recommended when an active, approved tool in the corporate catalog covers the requested category and capability, and the requester has not justified a valid capability gap.
-- **`escalate`**: Recommended when special reviews (Security, Privacy, Legal, Finance, CFO) or elevated risk flags are active (e.g. uncompleted security reviews, budget shortfall, sensitive data access).
-- **`request_info`**: Recommended when mandatory submission parameters (such as annual cost, user seat count, or data access level) are missing or ambiguous.
-
-### 2. Precedence Hierarchy
-When multiple policy triggers apply, recommendations resolve in strict precedence order:
+### 1. Recommendation Precedence Hierarchy
+When multiple policy triggers apply simultaneously, recommendations resolve in strict precedence order:
 ```text
 request_info  >  use_existing_tool  >  escalate  >  approve
 ```
-1. **`request_info`** outranks all others: Missing critical information must be resolved before assessing tools or risks.
-2. **`use_existing_tool`** outranks `escalate`: Redirection to an existing internal tool supersedes initiating costly security/legal onboarding reviews unless the requester provides a legitimate gap justification.
-3. **`escalate`** outranks `approve`: Any required specialist review or risk condition elevates the request to human specialists.
-4. **`approve`** fires only when all policy constraints and evidence checks pass cleanly.
+- **`request_info`** outranks all others: Missing material information (annual cost, user count, data access level) halts review.
+- **`use_existing_tool`** outranks `escalate`: Directing users to existing catalog solutions takes priority over initiating costly security/legal onboarding reviews, unless `gap_justified == True`.
+- **`escalate`** outranks `approve`: Any required specialist review (Security, Privacy, Legal, Finance) elevates the request.
+- **`approve`** fires only when all policy constraints and evidence checks pass cleanly.
 
-Even when `use_existing_tool` or `request_info` fires, `approvals_required` and `risk_flags` are fully computed and preserved for audit transparency.
+### 2. Fail-Safe Code Overlays
+- **CFO Approval Tier (Policy Section 4)**: Spend $> \$25,000$ with an approved vendor is a routine approval tier with approvers `["Department Head", "Finance", "CFO", "Procurement"]` (recommends `approve`, not `escalate`).
+- **Mandatory Privacy Review (Option B1)**: Any request involving a vendor with `processes_personal_data=True` requires `Privacy` review, recommending `escalate`.
+- **API Outage Graceful Degradation (Policy Section 10)**: External vendor API 503 outages or timeouts flag `vendor_risk_unavailable` and route to `Security` via `escalate`.
+- **Prompt Injection Defense (Policy Section 9)**: Injection attempts flag `prompt_injection_detected` but do not alter underlying policy outcomes. Injection can never relax rules or reduce approvals.
+- **Fail-Safe Defaults**: If the LLM produces invalid or missing outputs, `gap_justified` defaults to `True` (routing to human review rather than falsely redirecting). Code scans can only **add** risk flags, never remove them.
 
-## Suggested implementation sequence
+---
 
-```text
-Request -> Understand -> Gather evidence -> Deterministic checks
-        -> Policy/risk reasoning -> Recommendation -> Human review
-```
+## 7. Recommendation Label Definitions
 
-Start with a thin vertical slice. Get Architecture A working before building Architecture B.
+ProcureLens recommendations are advisory signals designed to guide human decision-makers. They follow strict semantics:
 
-## Useful files
+- **`approve`**: Strictly means **"recommend proceeding to the listed approvers"**, NEVER **"purchase approved"**. ProcureLens holds zero financial authority; final purchase approval remains exclusively with designated human approvers.
+- **`reject`**: **Reserved exclusively for human reviewers**. The AI copilot never autonomously rejects a purchase request. Violated policies or budget shortfalls are routed via `escalate` or `use_existing_tool`.
+- **`use_existing_tool`**: Recommended when an active, approved tool in the corporate catalog covers the requested capability and the requester has not justified a valid capability gap.
+- **`escalate`**: Recommended when specialist reviews (Security, Privacy, Legal, Finance) or elevated risk flags are active.
+- **`request_info`**: Recommended when mandatory parameters are missing or ambiguous.
 
-- `docs/Assignment_3_Brief.pdf` - assignment brief
-- `data/README.md` - dataset dictionary
-- `data/procurement_policy.md` - policy source of truth
-- `src/contracts.py` - required output shape
-- `src/data_access.py` - low-level data helpers
-- `src/vendor_client.py` - client for the mock vendor-risk API
-- `evals/README.md` - evaluation instructions
-- `templates/architecture_decision.md` - final decision memo template
-- `STUDENT_CHECKLIST.md` - pre-submission checklist
+---
 
-## If something does not start
+## 8. Core Assumptions & System Limitations
 
-1. Confirm your virtual environment is active.
-2. Run `python verify_setup.py`.
-3. Re-run `python -m pip install -r requirements.txt`.
-4. Make sure ports **8001** and **8501** are free.
-5. Confirm you are running commands from the starter-pack root directory.
+### Assumptions
+1. **Fixed Anchor Date**: In accordance with `data/procurement_policy.md`, all date-based calculations (e.g. 365-day security assessment validity) use the anchor date **2026-09-30**.
+2. **Advisory Authority**: The copilot provides triage recommendations and transparent evidence; human stakeholders hold all final approval authority.
+3. **Unmapped Budgets (Go-To-Market Option A)**: Unmapped departments escalate to Finance with approver `Finance` and risk flag `no_department_budget`.
 
-Build the simplest system you can defend with evidence.
+### System Limitations
+1. **Single-Turn Triage**: ProcureLens performs static, single-turn analysis per request without interactive multi-turn clarification dialog with the requester.
+2. **Free-Tier Rate Limits**: Free LLM APIs (Groq `openai/gpt-oss-20b`) enforce tokens-per-day (TPD) quotas, requiring disk caching and backoff pacing during large evaluation batches.
+3. **Catalog Scale**: Catalog overlap matching currently uses in-memory structured filtering; high-cardinality enterprise catalogs (>10,000 SKUs) would benefit from vector embeddings.
+
+---
+
+## 9. Bugs Fixed & Architectural Evolution
+
+All 11 architectural bugs discovered and resolved during development are documented in [`BUGS.md`](file:///Users/kavya/Documents/SCALER/Projects/procurelens/BUGS.md):
+
+| Bug ID | Title | Summary of Resolution |
+| :---: | :--- | :--- |
+| **Bug 1** | `NoneType` Error on Unmapped Budgets | Added safe dictionary lookups and graceful escalation for unmapped departments. |
+| **Bug 2** | `processes_personal_data` Missing from Registry | Enriched vendor registry dataset to ensure deterministic privacy evaluation. |
+| **Bug 3** | System Date vs. Fixed Policy Anchor Date | Anchored all 365-day expiry calculations to policy reference date `2026-09-30`. |
+| **Bug 4** | Missing Information Detection Bypass | Added pre-execution schema validation halting incomplete requests with `request_info`. |
+| **Bug 5** | Mock API Service Port Contention | Added dynamic port discovery and clean process management in `run_local.py`. |
+| **Bug 6** | Unmapped Departures in Budget Schema | Standardized department mapping logic between employee database and budget records. |
+| **Bug 7** | Vendor Risk API Outage Crash | Wrapped API client in structured exception handling, flagging `vendor_risk_unavailable`. |
+| **Bug 8** | Single Agent Prompt Injection Leakage | Isolated untrusted text blocks and implemented deterministic keyword scan union. |
+| **Bug 9** | Free-Text Prompt Injection & Policy Isolation | Aligned injection handling with Policy Section 9 (flags risk without altering policy rules). |
+| **Bug 10** | Precedence Inversion & Catalog Overlap Conflation | Established strict precedence `info > catalog > escalate > approve` and separated seat expansions from overlaps. |
+| **Bug 11** | Fixture Confound in Outage Cases (EVAL-14 & 15) | Changed category to `"Legal AI"` (zero catalog entries), isolating vendor API failure testing from catalog substitution. |
+
+---
+
+## 10. Evaluation Benchmark Results
+
+The 20-case evaluation benchmark in [`evals/eval_cases.json`](file:///Users/kavya/Documents/SCALER/Projects/procurelens/evals/eval_cases.json) rigorously tests boundary conditions, financial tiers, prompt injections, catalog overlaps, and API outages.
+
+> **Methodological Scope & Statistical Limitations:**
+> - **Sample Size & Model**: Evaluated on $N = 20$ benchmark cases using single-run executions against a single model (`openai/gpt-oss-20b`).
+> - **Statistical Significance**: A 1-case difference between architectures ($N = 1 / 20$, or 5%) is **not statistically meaningful** and should not be construed as definitive proof of general architectural superiority.
+> - **Interpretation of EVAL-05**: The single-case divergence on `EVAL-05` (where Architecture B recognized a justified functional capability gap while Architecture A defaulted to a false catalog redirect) is **suggestive** of the staged pipeline's ability to isolate subjective reasoning, but is **not decisive**.
+> - **Raw Output Before Policy Engine**: Evaluates raw model recommendations before deterministic code intervention. Because raw model prompts intentionally do not encode procedural precedence hierarchies, this metric is labeled **raw output before policy engine (directional, not a model quality score)** and is not used as a headline score.
+> - **Reconciliation of Override Rates vs Raw Output Errors**: The **Recommendation Override Rate** is the strict metric measuring cases where deterministic policy rules actively replaced the model's explicit raw recommendation string (Architecture A: 11/20 or 55.0%; Architecture B: 3/20 or 15.0%). In earlier summaries, A showed '13 code rescues' and B showed '5 wrong raw outputs': this gap is explained by EVAL-01 and EVAL-20 from initial runs having unlogged raw outputs (`raw=None`). Because `raw=None` did not equal expected, both were counted as non-matching in raw output directional accuracy (yielding 14 non-matches for A and 5 non-matches for B). In both cases, the policy engine supplied the correct final recommendation directly, yielding 11 + 2 = 13 code rescues on A (with 1 unrescued failure EVAL-05) and 3 + 2 = 5 non-matches on B (all 5 matching final).
+> - **Taxonomy Normalization Rate**: Deterministic code normalizes free-text strings into standardized policy vocabulary on **100% (20/20)** of runs across both architectures. The previous report showed 45% (A) and 85% (B) due to an interim code definition that made recommendation override and taxonomy override mutually exclusive; removing that artificial exclusion restores the true 100% rate.
+
+### Full 20-Case Benchmark Summary Table
+
+| Benchmark Metric | Architecture A (Single Agent) | Architecture B (Staged 2-Agent) | Delta (B vs A) |
+| :--- | :---: | :---: | :---: |
+| **Overall Pass Rate** | **95.0%** (19/20) | **100.0%** (20/20) | **+5.0%** |
+| **Recommendation Accuracy (Code-Corrected)** | **95.0%** (19/20) | **100.0%** (20/20) | **+5.0%** |
+| **Raw Output Before Policy Engine (Directional, Not Model Score)** | **30.0%** (6/20) | **75.0%** (15/20) | **+45.0%** |
+| **Exact Approvals Accuracy** | **100.0%** (20/20) | **100.0%** (20/20) | 0.0% |
+| **Required Flags Accuracy** | **100.0%** (20/20) | **100.0%** (20/20) | 0.0% |
+| **Evidence Grounding Rate** | **100.0%** (20/20) | **100.0%** (20/20) | 0.0% |
+| **Forbidden Recs Avoided** | **95.0%** (19/20) | **100.0%** (20/20) | **+5.0%** |
+| **Recommendation Override Rate (Code Correction)** | **55.0%** (11/20) | **15.0%** (3/20) | **-40.0%** |
+| **Taxonomy Normalization Rate** | **100.0%** (20/20) | **100.0%** (20/20) | 0.0% |
+| **Fallback Model Runs** | 0 | 0 | 0 |
+| **Avg Net Latency (excl. 429 wait)** | **5,770.0 ms** | **15,068.0 ms** | **+9,298.0 ms** (~2.6x) |
+| **Avg LLM Calls per Request** | **3.80** | **4.85** | **+1.05** |
+| **Avg Tool Calls per Request** | **4.00** | **4.00** | 0.00 |
+
+### Subjective LLM-Judgment Cases Subset (5 Cases: EVAL-02, 04, 05, 13, 20)
+
+| LLM-Judgment Metric | Architecture A (Single) | Architecture B (Staged) | Delta (B vs A) |
+| :--- | :---: | :---: | :---: |
+| **Subset Case Count** | 5 | 5 | 0 |
+| **Recommendation Accuracy (Code-Corrected)** | **80.0%** (4/5) | **100.0%** (5/5) | **+20.0%** |
+| **Raw Output Before Policy Engine (Directional)** | **20.0%** (1/5) | **80.0%** (4/5) | **+60.0%** |
+| **Exact Approvals Accuracy** | **100.0%** (5/5) | **100.0%** (5/5) | 0.0% |
+| **Required Flags Accuracy** | **100.0%** (5/5) | **100.0%** (5/5) | 0.0% |
+| **Recommendation Override Rate** | **60.0%** (3/5) | **20.0%** (1/5) | **-40.0%** |
+
+---
+
+## 11. Final Ship Decision
+
+**Decision: ship Architecture A (single agent + deterministic policy engine).**
+
+### Evidence
+20 cases, one run each, `openai/gpt-oss-20b`, identical fixtures for both architectures. Approvals (20/20) and required flags (20/20) are identical, because both architectures delegate thresholds, specialist reviews and precedence to code. Final recommendation accuracy was A 19/20 and B 20/20. B costs about 2.6x the net latency (15.1s vs 5.8s) and 28% more LLM calls (4.85 vs 3.8 per request).
+
+### Why Architecture A
+The architecture only matters for three LLM judgments (gap justification, injection suspicion, ambiguity). B's whole advantage is one case, EVAL-05, where A twice judged a justified gap as unjustified and redirected to the existing tool. That result was stable across two runs but is one case on one model, so it is suggestive, not statistically meaningful. A's failure still reaches a human reviewer (`human_review_required` is always true) with the correct approvals listed. Paying 2.6x latency and more calls for one case is not justified yet.
+
+### Safeguards That Make Architecture A Acceptable
+Code overrides the model on recommendation, approvals and flags; evidence is built from tool results; injection can only add flags; invalid output falls back to escalate. Paired injection cases and the paraphrased-injection case passed on both.
+
+### Known Weakness and Next Step
+A's `gap_justified` judgment is weaker. Next step is a tighter gap prompt (require a quoted justification), validated on new cases, not just EVAL-05, to avoid tuning to the test set.
+
+### When I Would Switch to Architecture B
+If a larger case set shows B consistently better on LLM-judgment cases, or if keeping raw requester text away from the final decision becomes a hard security requirement. B's isolation is a structural advantage I did not measure separately.
+
+### Limitations
+$N = 20$, single runs, one small model, raw-output-before-policy accuracy is directional only, cases were written by the same team that built the system.
+

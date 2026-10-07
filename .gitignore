@@ -21,6 +21,10 @@ Thumbs.db
 .pytest_cache/
 evals/results_*.csv
 eval/results_*.csv
+evals/.eval_cache.json
+evals/benchmark_results.csv
+!evals/results/
+!evals/results/**
 
 # Assessment notes & prompt files
 build.md
