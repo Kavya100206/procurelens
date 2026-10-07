@@ -269,6 +269,44 @@ class ToolTests(unittest.TestCase):
         self.assertNotEqual(policy_res["recommendation"], "approve")
         self.assertEqual(policy_res["recommendation"], "escalate")
 
+    def test_all_check_policy_flags_in_policy_vocabulary(self):
+        """Assert every flag that check_policy can emit is contained in POLICY_RISK_FLAGS."""
+        from src.contracts import POLICY_RISK_FLAGS
+        from tools.check_policy import CHECK_POLICY_FLAGS, check_policy
+        import inspect
+        import ast
+
+        # 1. Assert explicit constant
+        for flag in CHECK_POLICY_FLAGS:
+            self.assertIn(
+                flag,
+                POLICY_RISK_FLAGS,
+                f"Flag '{flag}' emitted by check_policy is missing from POLICY_RISK_FLAGS",
+            )
+
+        # 2. Assert via AST parse of check_policy body to ensure no unlisted string literals are appended
+        src = inspect.getsource(check_policy)
+        tree = ast.parse(src)
+        ast_appended_flags = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                if (
+                    isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "append"
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == "risk_flags"
+                ):
+                    if node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
+                        ast_appended_flags.add(node.args[0].value)
+
+        self.assertTrue(len(ast_appended_flags) > 0, "AST scan should find appended risk flags")
+        for flag in ast_appended_flags:
+            self.assertIn(
+                flag,
+                POLICY_RISK_FLAGS,
+                f"Flag '{flag}' dynamically appended in check_policy is missing from POLICY_RISK_FLAGS",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

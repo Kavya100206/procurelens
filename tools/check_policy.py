@@ -31,6 +31,22 @@ def scan_prompt_injection(*texts: str | None) -> bool:
     return False
 
 
+# Canonical risk flags that check_policy can emit deterministically
+CHECK_POLICY_FLAGS: set[str] = {
+    "missing_information",
+    "no_department_budget",
+    "budget_insufficient",
+    "vendor_risk_unavailable",
+    "vendor_review_expired",
+    "conflicting_vendor_evidence",
+    "security_review_required",
+    "privacy_review_required",
+    "legal_review_required",
+    "existing_tool_overlap",
+    "prompt_injection_detected",
+}
+
+
 def check_policy(
     amount: float | int | None,
     data_access_level: str | None = None,

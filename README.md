@@ -243,12 +243,14 @@ ProcureLens recommendations are advisory signals designed to guide human decisio
 1. **Single-Turn Triage**: ProcureLens performs static, single-turn analysis per request without interactive multi-turn clarification dialog with the requester.
 2. **Free-Tier Rate Limits**: Free LLM APIs (Groq `openai/gpt-oss-20b`) enforce tokens-per-day (TPD) quotas, requiring disk caching and backoff pacing during large evaluation batches.
 3. **Catalog Scale**: Catalog overlap matching currently uses in-memory structured filtering; high-cardinality enterprise catalogs (>10,000 SKUs) would benefit from vector embeddings.
+4. **Cached Evaluation Flag Telemetry**: The cached evaluation ran before the flag filter; pass/fail is unaffected, and `actual_flags` in `evals/results/benchmark_results.csv` may contain LLM-invented names for those runs.
+5. **Ambiguity Gate Heuristic**: The `ambiguity_reason` gate for LLM-added `missing_information` is a loose heuristic, mitigated by the schema-name filter that strictly drops internal dataset column names.
 
 ---
 
 ## 9. Bugs Fixed & Architectural Evolution
 
-All 11 architectural bugs discovered and resolved during development are documented in [`BUGS.md`](file:///Users/kavya/Documents/SCALER/Projects/procurelens/BUGS.md):
+All 12 architectural bugs discovered and resolved during development are documented in [`BUGS.md`](file:///Users/kavya/Documents/SCALER/Projects/procurelens/BUGS.md):
 
 | Bug ID | Title | Summary of Resolution |
 | :---: | :--- | :--- |
@@ -263,6 +265,7 @@ All 11 architectural bugs discovered and resolved during development are documen
 | **Bug 9** | Free-Text Prompt Injection & Policy Isolation | Aligned injection handling with Policy Section 9 (flags risk without altering policy rules). |
 | **Bug 10** | Precedence Inversion & Catalog Overlap Conflation | Established strict precedence `info > catalog > escalate > approve` and separated seat expansions from overlaps. |
 | **Bug 11** | Fixture Confound in Outage Cases (EVAL-14 & 15) | Changed category to `"Legal AI"` (zero catalog entries), isolating vendor API failure testing from catalog substitution. |
+| **Bug 12** | Raw LLM Flag & Missing-Info Vocabulary Leakage | Restricted final risk flags to canonical policy vocabulary and dropped invented schema columns from missing info. |
 
 ---
 

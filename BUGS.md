@@ -95,4 +95,15 @@ This document tracks all bugs, inconsistencies, and edge-case vulnerabilities id
 - **Root Cause (Fixture Confound):** Both evaluation cases originally assigned `category: "General AI"` to `NimbusAI Copilot`. In `software_catalog.csv`, `NeuralDesk Business` exists under `General AI`. Because the test was designed to evaluate graceful degradation during vendor API outages per Policy Section 10, the unintended catalog overlap in `General AI` caused policy precedence (`use_existing_tool > escalate`) to fire when the requester provided a generic business justification (*"Marketing team writing assistant"*, *"Copywriting tool"*).
 - **Fix:** Preserved the original run record in `BUGS.md` as "original run, fixture confound". Updated `evals/eval_cases.json` for EVAL-14 and EVAL-15 so that `category` is changed to `"Legal AI"` (matching `REQ-1009`, which has zero catalog entries), while keeping `product_name` and `business_justification` completely unchanged. This cleanly isolates vendor API failure handling from catalog substitution rules.
 
+---
+
+### Bug 12: Raw LLM Flag & Missing-Information Vocabulary Leakage
+- **Status:** Fixed in Phase 6
+- **Symptom:** Manual UI testing and benchmark telemetry showed unstandardized and hallucinated strings appearing in `risk_flags` (e.g. `"duplicate_purchase"`, `"vendor_processes_personal_data"`, `"vendor_risk_medium"`) and in `missing_information` (e.g. `"internal_security_review_date"`).
+- **Root Cause:** Both `src/agent_single.py` and `src/agent_staged.py` used an unconstrained `set(...)` union of raw LLM JSON outputs and deterministic policy engine outputs (`set(parsed_decision.risk_flags + policy_check["risk_flags"])`). When the LLM generated synonyms for policy flags or copied internal dataset column names/telemetry into its JSON response, these non-policy strings leaked directly into the final `ProcurementDecision`.
+- **Fix:**
+  1. Defined canonical policy risk flag vocabulary `POLICY_RISK_FLAGS` in `src/contracts.py`.
+  2. Enforced rule: Policy flags are never filtered. Final `risk_flags = set(policy_check["risk_flags"]) | (set(parsed_decision.risk_flags) & POLICY_RISK_FLAGS)`, plus `prompt_injection_detected` when injection is detected.
+  3. Base `missing_information` on `policy_check["missing_information"]`. Retain an LLM-added missing field only if `ambiguity_reason` is non-empty, and strictly drop invented internal schema-column names (e.g. `internal_security_review_date`).
+
 

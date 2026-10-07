@@ -302,6 +302,88 @@ class SolutionTests(unittest.TestCase):
         import py_compile
         py_compile.compile(str(ROOT / "app.py"), doraise=True)
 
+    @patch("src.agent_single._call_groq_with_retry")
+    def test_llm_hallucinated_flags_and_schema_columns_are_filtered(self, mock_groq):
+        """Confirm non-policy flags (duplicate_purchase, vendor_risk_medium) and invented
+
+        schema-column missing items (internal_security_review_date) are filtered from final output,
+        while canonical policy flags (privacy_review_required, existing_tool_overlap) are retained.
+        """
+        payload = {
+            "request_id": "REQ-1001",
+            "recommendation": "escalate",
+            "evidence": [],
+            "approvals_required": ["Manager", "Privacy"],
+            "missing_information": ["internal_security_review_date"],
+            "risk_flags": [
+                "duplicate_purchase",
+                "vendor_risk_medium",
+                "privacy_review_required",
+            ],
+            "next_step": "Route for privacy review.",
+            "gap_justified": True,
+            "injection_suspected": False,
+            "ambiguity_reason": "Missing review dates",
+        }
+        mock_msg = MagicMock(tool_calls=None, content=json.dumps(payload))
+        mock_choice = MagicMock(message=mock_msg)
+        mock_groq.return_value = (MagicMock(choices=[mock_choice]), "openai/gpt-oss-20b", False, 0.0)
+
+        decision = handle_request("REQ-1001", architecture="single")
+
+        # Non-policy flags must be strictly removed
+        self.assertNotIn("duplicate_purchase", decision.risk_flags)
+        self.assertNotIn("vendor_risk_medium", decision.risk_flags)
+
+        # Canonical policy flags must stay
+        self.assertIn("privacy_review_required", decision.risk_flags)
+        self.assertIn("existing_tool_overlap", decision.risk_flags)
+
+        # Invented schema column in missing_information must be dropped
+        self.assertNotIn("internal_security_review_date", decision.missing_information)
+        self.assertEqual(decision.missing_information, [])
+
+        # Raw telemetry preserves the raw LLM output for auditing
+        self.assertIn("duplicate_purchase", decision.telemetry.raw_llm_risk_flags)
+        self.assertIn("vendor_risk_medium", decision.telemetry.raw_llm_risk_flags)
+
+    @patch("src.agent_staged._call_groq_with_retry")
+    def test_staged_architecture_filters_hallucinated_flags_and_schema_columns(self, mock_groq):
+        """Confirm Architecture B (Staged) also filters non-policy flags and schema column names."""
+        analyst_payload = {
+            "summary": "Analyst summary",
+            "signals": ["signal1"],
+            "gap_justified": True,
+            "gap_reason": "Valid gap",
+            "injection_suspected": False,
+            "ambiguity_reason": "Missing review dates",
+        }
+        reviewer_payload = {
+            "request_id": "REQ-1001",
+            "recommendation": "escalate",
+            "evidence": [],
+            "approvals_required": ["Manager", "Privacy"],
+            "missing_information": ["internal_security_review_date"],
+            "risk_flags": [
+                "duplicate_purchase",
+                "vendor_risk_medium",
+                "privacy_review_required",
+            ],
+            "next_step": "Route for privacy review.",
+        }
+        resp1 = MagicMock(choices=[MagicMock(message=MagicMock(tool_calls=None, content=json.dumps(analyst_payload)))])
+        resp2 = MagicMock(choices=[MagicMock(message=MagicMock(tool_calls=None, content=json.dumps(reviewer_payload)))])
+        mock_groq.side_effect = [
+            (resp1, "openai/gpt-oss-20b", False, 0.0),
+            (resp2, "openai/gpt-oss-20b", False, 0.0),
+        ]
+
+        decision = handle_request("REQ-1001", architecture="staged")
+        self.assertNotIn("duplicate_purchase", decision.risk_flags)
+        self.assertNotIn("vendor_risk_medium", decision.risk_flags)
+        self.assertIn("privacy_review_required", decision.risk_flags)
+        self.assertNotIn("internal_security_review_date", decision.missing_information)
+
 
 if __name__ == "__main__":
     unittest.main()

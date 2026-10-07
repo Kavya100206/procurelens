@@ -9,7 +9,14 @@ from typing import Any
 from dotenv import load_dotenv
 from groq import Groq
 
-from src.contracts import EvidenceItem, ProcurementDecision, RunTelemetry
+from src.contracts import (
+    POLICY_RISK_FLAGS,
+    EvidenceItem,
+    ProcurementDecision,
+    RunTelemetry,
+    filter_llm_missing_information,
+    filter_risk_flags,
+)
 from src.data_access import get_request, load_employees
 from tools import check_budget, check_catalog, check_policy, get_vendor_status
 from tools.check_policy import scan_prompt_injection
@@ -537,14 +544,19 @@ Urgency: {req.get('urgency')}
     # Override approvals: deterministic policy strictly supersedes model output
     required_approvals = list(policy_check["approvals_required"])
 
-    # Override risk flags: merge policy flags with any model-identified flags
-    combined_flags_set = set(parsed_decision.risk_flags + policy_check["risk_flags"])
-    if final_injection:
-        combined_flags_set.add("prompt_injection_detected")
-    combined_flags = sorted(list(combined_flags_set))
+    # Override risk flags: policy flags UNION (LLM flags INTERSECT POLICY_RISK_FLAGS) + prompt_injection_detected
+    combined_flags = filter_risk_flags(
+        llm_flags=parsed_decision.risk_flags,
+        policy_flags=policy_check["risk_flags"],
+        final_injection=final_injection,
+    )
 
-    # Missing info: merge policy missing fields
-    combined_missing = sorted(list(set(parsed_decision.missing_information + policy_check["missing_information"])))
+    # Missing info: use policy_check list; keep LLM item only if ambiguity_reason is non-empty; drop invented schema columns
+    combined_missing = filter_llm_missing_information(
+        llm_missing=parsed_decision.missing_information,
+        policy_missing=policy_check["missing_information"],
+        ambiguity_reason=ambiguity_reason,
+    )
 
     # Final recommendation: Deterministic code strictly overrides model
     if "validation_failure" in combined_flags:

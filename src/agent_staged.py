@@ -10,7 +10,14 @@ from typing import Any
 from groq import Groq
 
 from src.agent_single import TOOL_DEFINITIONS, _call_groq_with_retry
-from src.contracts import EvidenceItem, ProcurementDecision, RunTelemetry
+from src.contracts import (
+    POLICY_RISK_FLAGS,
+    EvidenceItem,
+    ProcurementDecision,
+    RunTelemetry,
+    filter_llm_missing_information,
+    filter_risk_flags,
+)
 from src.data_access import get_request, load_employees
 from tools.check_budget import check_budget
 from tools.check_catalog import check_catalog
@@ -511,11 +518,16 @@ Urgency: {req.get('urgency')}
             final_evidence.append(ev)
 
     required_approvals = list(policy_check["approvals_required"])
-    combined_flags_set = set(parsed_decision.risk_flags + policy_check["risk_flags"])
-    if final_injection:
-        combined_flags_set.add("prompt_injection_detected")
-    combined_flags = sorted(list(combined_flags_set))
-    combined_missing = sorted(list(set(parsed_decision.missing_information + policy_check["missing_information"])))
+    combined_flags = filter_risk_flags(
+        llm_flags=parsed_decision.risk_flags,
+        policy_flags=policy_check["risk_flags"],
+        final_injection=final_injection,
+    )
+    combined_missing = filter_llm_missing_information(
+        llm_missing=parsed_decision.missing_information,
+        policy_missing=policy_check["missing_information"],
+        ambiguity_reason=ambiguity_reason,
+    )
 
     if "validation_failure" in combined_flags:
         final_recommendation = "escalate"
