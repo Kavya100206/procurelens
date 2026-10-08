@@ -2,6 +2,9 @@
 
 ProcureLens is an enterprise AI procurement copilot engineered to automate the triage, evidence synthesis, and risk assessment of corporate software purchase requests. It combines tool-assisted LLM reasoning with deterministic policy guardrails to enforce organizational procurement policies while keeping all purchasing authority with human decision-makers.
 
+### At a Glance
+ProcureLens automates the triage and compliance review of corporate software purchase requests by pairing tool-calling LLMs with deterministic policy guardrails. We benchmarked two agent architectures head-to-head—Architecture A (single agent) versus Architecture B (staged two-agent pipeline)—across a 20-case evaluation suite. We made the final decision to ship Architecture A (single agent) over Architecture B because B's 2.6x latency cost was not justified by a 1-case/20 accuracy difference that is not statistically meaningful.
+
 ---
 
 ## 1. Executive Summary & Capabilities
@@ -278,8 +281,7 @@ The 20-case evaluation benchmark in [`evals/eval_cases.json`](evals/eval_cases.j
 > - **Statistical Significance**: A 1-case difference between architectures ($N = 1 / 20$, or 5%) is **not statistically meaningful** and should not be construed as definitive proof of general architectural superiority.
 > - **Interpretation of EVAL-05**: The single-case divergence on `EVAL-05` (where Architecture B recognized a justified functional capability gap while Architecture A defaulted to a false catalog redirect) is **suggestive** of the staged pipeline's ability to isolate subjective reasoning, but is **not decisive**.
 > - **Raw Output Before Policy Engine**: Evaluates raw model recommendations before deterministic code intervention. Because raw model prompts intentionally do not encode procedural precedence hierarchies, this metric is labeled **raw output before policy engine (directional, not a model quality score)** and is not used as a headline score.
-> - **Reconciliation of Override Rates vs Raw Output Errors**: The **Recommendation Override Rate** is the strict metric measuring cases where deterministic policy rules actively replaced the model's explicit raw recommendation string (Architecture A: 11/20 or 55.0%; Architecture B: 3/20 or 15.0%). In earlier summaries, A showed '13 code rescues' and B showed '5 wrong raw outputs': this gap is explained by EVAL-01 and EVAL-20 from initial runs having unlogged raw outputs (`raw=None`). Because `raw=None` did not equal expected, both were counted as non-matching in raw output directional accuracy (yielding 14 non-matches for A and 5 non-matches for B). In both cases, the policy engine supplied the correct final recommendation directly, yielding 11 + 2 = 13 code rescues on A (with 1 unrescued failure EVAL-05) and 3 + 2 = 5 non-matches on B (all 5 matching final).
-> - **Taxonomy Normalization Rate**: Deterministic code normalizes free-text strings into standardized policy vocabulary on **100% (20/20)** of runs across both architectures. The previous report showed 45% (A) and 85% (B) due to an interim code definition that made recommendation override and taxonomy override mutually exclusive; removing that artificial exclusion restores the true 100% rate.
+> - See [evals/METHODOLOGY.md](evals/METHODOLOGY.md) for metric-definition corrections and edge-case handling during development.
 
 ### Full 20-Case Benchmark Summary Table
 
